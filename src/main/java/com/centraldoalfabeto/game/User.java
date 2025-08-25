@@ -1,10 +1,12 @@
 package com.centraldoalfabeto.game;
 
+//importações
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 
+//declaração da Classe User
 @Entity
 public class User {
 
@@ -16,6 +18,7 @@ public class User {
     private String password;
     private int currentPhase; 
 
+    //Construtores
     public User() {
     }
 
@@ -25,6 +28,7 @@ public class User {
         this.currentPhase = currentPhase;
     }
 
+    //Geters e Setters
     public Long getId() {
         return id;
     }
