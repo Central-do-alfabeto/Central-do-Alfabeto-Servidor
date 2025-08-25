@@ -28,7 +28,7 @@ public class User {
         this.currentPhase = currentPhase;
     }
 
-    //Geters e Setters
+    // Getters e Setters
     public Long getId() {
         return id;
     }
