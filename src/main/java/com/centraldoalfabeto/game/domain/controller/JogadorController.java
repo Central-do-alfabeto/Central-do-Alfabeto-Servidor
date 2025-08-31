@@ -1,7 +1,7 @@
 package com.centraldoalfabeto.game.domain.controller;
 
 import com.centraldoalfabeto.game.domain.model.Jogador;
-import com.centraldoalfabeto.repository.JogadorRepository; // "Supondo que você use o repositório diretamente" <- não sei o que o Gemini quis dizer aqui, talvez tenha a ver com o Service
+import com.centraldoalfabeto.game.repository.JogadorRepository; // "Supondo que você use o repositório diretamente" <- não sei o que o Gemini quis dizer aqui, talvez tenha a ver com o Service
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
