@@ -1,8 +1,8 @@
 package com.centraldoalfabeto.game.domain.controller;
 
 import com.centraldoalfabeto.game.domain.model.Educador;
-import com.centraldoalfabeto.repository.EducadorRepository;
-import com.centraldoalfabeto.service.EducadorService;
+import com.centraldoalfabeto.game.repository.EducadorRepository;
+import com.centraldoalfabeto.game.service.EducadorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
