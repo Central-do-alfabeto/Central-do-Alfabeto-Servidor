@@ -1,11 +1,7 @@
 package com.centraldoalfabeto.game.repository;
 
-//importações
+import com.centraldoalfabeto.game.domain.model.Jogador;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-import java.util.Optional;
 
-@Repository
-public interface UserRepository extends JpaRepository<User, Long> {
-    Optional<User> findByEmail(String email);
+public interface JogadorRepository extends JpaRepository<Jogador, Long> {
 }
