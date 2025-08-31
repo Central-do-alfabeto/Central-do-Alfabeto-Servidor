@@ -1,4 +1,4 @@
-package com.centraldoalfabeto.game;
+package com.centraldoalfabeto.game.repository;
 
 //importações
 import org.springframework.data.jpa.repository.JpaRepository;
