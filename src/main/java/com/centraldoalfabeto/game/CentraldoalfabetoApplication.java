@@ -4,8 +4,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class CentralDoAlfabetoApplication {
+public class CentraldoalfabetoApplication {
 	public static void main(String[] args) {
-		SpringApplication.run(CentralDoAlfabetoApplication.class, args);
+		SpringApplication.run(CentraldoalfabetoApplication.class, args);
 	}
 }
