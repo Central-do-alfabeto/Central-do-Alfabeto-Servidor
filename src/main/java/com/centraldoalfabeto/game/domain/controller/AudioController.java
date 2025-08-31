@@ -1,3 +1,5 @@
+package com.centraldoalfabeto.game.domain.controller;
+
 import com.google.cloud.speech.v1.RecognitionAudio;
 import com.google.cloud.speech.v1.RecognitionConfig;
 import com.google.cloud.speech.v1.SpeechClient;
