@@ -23,7 +23,6 @@ public class Jogador {
     private int[] numberOfSoundRepeatsByPhase;
 
     public Jogador() {
-        // Inicializa os arrays quando um novo jogador é criado
         this.numberOfErrorsByPhase = new int[10];
         this.numberOfSoundRepeatsByPhase = new int[10];
     }
