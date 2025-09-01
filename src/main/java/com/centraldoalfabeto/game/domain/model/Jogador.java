@@ -5,7 +5,6 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "players")
 public class Jogador {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -23,8 +22,8 @@ public class Jogador {
     private int[] numberOfSoundRepeatsByPhase;
 
     public Jogador() {
-        this.numberOfErrorsByPhase = new int[10];
-        this.numberOfSoundRepeatsByPhase = new int[10];
+        this.numberOfErrorsByPhase = new int[50];
+        this.numberOfSoundRepeatsByPhase = new int[50];
     }
 
     public Long getId() {
