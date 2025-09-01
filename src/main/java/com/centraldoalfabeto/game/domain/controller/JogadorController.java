@@ -19,7 +19,7 @@ public class JogadorController {
         Jogador newPlayer = jogadorRepository.save(player);
         return new ResponseEntity<>(newPlayer, HttpStatus.CREATED);
     }
-
+    
     @PutMapping("/{id}/updateProgress")
     public ResponseEntity<Jogador> updateProgress(
             @PathVariable Long id,
@@ -45,5 +45,16 @@ public class JogadorController {
 
         Jogador updatedPlayer = jogadorRepository.save(player);
         return new ResponseEntity<>(updatedPlayer, HttpStatus.OK);
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<Jogador> loginPlayer(@RequestBody Jogador player) {
+        Optional<Jogador> optionalPlayer = jogadorRepository.findByUsername(player.getFullName());
+
+        if (optionalPlayer.isPresent() && optionalPlayer.get().getPassword().equals(player.getPassword())) {
+            return new ResponseEntity<>(optionalPlayer.get(), HttpStatus.OK);
+        }
+        
+        return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
     }
 }
