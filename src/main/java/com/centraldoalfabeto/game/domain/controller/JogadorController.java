@@ -1,7 +1,7 @@
 package com.centraldoalfabeto.game.domain.controller;
 
 import com.centraldoalfabeto.game.domain.model.Jogador;
-import com.centraldoalfabeto.game.repository.JogadorRepository; // "Supondo que você use o repositório diretamente" <- não sei o que o Gemini quis dizer aqui, talvez tenha a ver com o Service
+import com.centraldoalfabeto.game.repository.JogadorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,9 +33,15 @@ public class JogadorController {
         }
 
         Jogador player = optionalPlayer.get();
+
+        if (currentPhaseIndex < 0 || currentPhaseIndex >= player.getNumberOfErrorsByPhase().length) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
         player.setCurrentPhaseIndex(currentPhaseIndex);
-        player.setNumberOfErrors(numberOfErrors);
-        player.setNumberOfSoundRepeats(numberOfSoundRepeats);
+        
+        player.getNumberOfErrorsByPhase()[currentPhaseIndex] = numberOfErrors;
+        player.getNumberOfSoundRepeatsByPhase()[currentPhaseIndex] = numberOfSoundRepeats;
 
         Jogador updatedPlayer = jogadorRepository.save(player);
         return new ResponseEntity<>(updatedPlayer, HttpStatus.OK);
