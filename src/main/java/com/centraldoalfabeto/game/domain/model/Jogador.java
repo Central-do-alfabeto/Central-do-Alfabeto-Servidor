@@ -15,11 +15,17 @@ public class Jogador {
     private String password;
 
     private Integer currentPhaseIndex;
-    private Integer numberOfErrors;
-    private Integer numberOfSoundRepeats;
 
-    // Construtor vazio (obrigatório para o JPA de acordo com o Gemini)
+    @ElementCollection
+    private int[] numberOfErrorsByPhase;
+
+    @ElementCollection
+    private int[] numberOfSoundRepeatsByPhase;
+
     public Jogador() {
+        // Inicializa os arrays quando um novo jogador é criado
+        this.numberOfErrorsByPhase = new int[10];
+        this.numberOfSoundRepeatsByPhase = new int[10];
     }
 
     public Long getId() {
@@ -62,19 +68,19 @@ public class Jogador {
         this.currentPhaseIndex = currentPhaseIndex;
     }
 
-    public Integer getNumberOfErrors() {
-        return numberOfErrors;
+    public int[] getNumberOfErrorsByPhase() {
+        return numberOfErrorsByPhase;
     }
 
-    public void setNumberOfErrors(Integer numberOfErrors) {
-        this.numberOfErrors = numberOfErrors;
+    public void setNumberOfErrorsByPhase(int[] numberOfErrorsByPhase) {
+        this.numberOfErrorsByPhase = numberOfErrorsByPhase;
     }
 
-    public Integer getNumberOfSoundRepeats() {
-        return numberOfSoundRepeats;
+    public int[] getNumberOfSoundRepeatsByPhase() {
+        return numberOfSoundRepeatsByPhase;
     }
 
-    public void setNumberOfSoundRepeats(Integer numberOfSoundRepeats) {
-        this.numberOfSoundRepeats = numberOfSoundRepeats;
+    public void setNumberOfSoundRepeatsByPhase(int[] numberOfSoundRepeatsByPhase) {
+        this.numberOfSoundRepeatsByPhase = numberOfSoundRepeatsByPhase;
     }
 }
