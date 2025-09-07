@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class Jogador {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -18,26 +19,18 @@ public class Jogador {
     private String password;
 
     private Integer currentPhaseIndex;
-    
+
+    // campos auxiliares não persistidos
     @Transient
     private Integer numberOfErrors;
-    
+
     @Transient
     private Integer numberOfSoundRepeats;
 
-    @ElementCollection
-    private int[] numberOfErrorsByPhase;
+    // armazenados no banco como integer[]
+    @Column(name = "errors_by_phase", columnDefinition = "integer[]")
+    private Integer[] numberOfErrorsByPhase = new Integer[10];
 
-    @ElementCollection
-    private int[] numberOfSoundRepeatsByPhase;
-    
-    @PostLoad
-    private void initializeArraysIfNull() {
-        if (this.numberOfErrorsByPhase == null) {
-            this.numberOfErrorsByPhase = new int[10];
-        }
-        if (this.numberOfSoundRepeatsByPhase == null) {
-            this.numberOfSoundRepeatsByPhase = new int[10];
-        }
-    }
+    @Column(name = "repeats_by_phase", columnDefinition = "integer[]")
+    private Integer[] numberOfSoundRepeatsByPhase = new Integer[10];
 }
