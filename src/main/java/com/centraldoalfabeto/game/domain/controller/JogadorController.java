@@ -14,7 +14,8 @@ import org.slf4j.LoggerFactory;
 @RestController
 @RequestMapping("/players")
 public class JogadorController {
-	private static final Logger logger = LoggerFactory.getLogger(JogadorController.class);
+
+    private static final Logger logger = LoggerFactory.getLogger(JogadorController.class);
 
     @Autowired
     private JogadorRepository jogadorRepository;
@@ -22,24 +23,31 @@ public class JogadorController {
     @PostMapping("/register")
     public ResponseEntity<Jogador> registerPlayer(@RequestBody Jogador player) {
         if (player.getFullName() == null || player.getEmail() == null || player.getPassword() == null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return ResponseEntity.badRequest().build();
         }
+
+        // garante que os arrays não venham nulos
+        if (player.getNumberOfErrorsByPhase() == null) {
+            player.setNumberOfErrorsByPhase(new Integer[10]);
+        }
+        if (player.getNumberOfSoundRepeatsByPhase() == null) {
+            player.setNumberOfSoundRepeatsByPhase(new Integer[10]);
+        }
+
         Jogador newPlayer = jogadorRepository.save(player);
-        return new ResponseEntity<>(newPlayer, HttpStatus.CREATED);
+        return ResponseEntity.status(HttpStatus.CREATED).body(newPlayer);
     }
-    
+
     @PutMapping("/{id}/updateProgress")
     public ResponseEntity<Void> updateProgress(
             @PathVariable Long id,
             @RequestBody ProgressUpdateDTO progressData) {
-    	logger.info("Dados recebidos para atualização: {}", progressData);
-        logger.info("currentPhaseIndex: {}", progressData.getCurrentPhaseIndex());
-        logger.info("numberOfErrors: {}", progressData.getNumberOfErrors());
-        logger.info("numberOfSoundRepeats: {}", progressData.getNumberOfSoundRepeats());
-        
+
+        logger.info("Dados recebidos para atualização: {}", progressData);
+
         Optional<Jogador> optionalPlayer = jogadorRepository.findById(id);
         if (optionalPlayer.isEmpty()) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            return ResponseEntity.notFound().build();
         }
 
         Jogador player = optionalPlayer.get();
@@ -48,19 +56,27 @@ public class JogadorController {
         Integer numberOfErrors = progressData.getNumberOfErrors();
         Integer numberOfSoundRepeats = progressData.getNumberOfSoundRepeats();
 
+        // validação dos dados
         if (currentPhaseIndex == null || numberOfErrors == null || numberOfSoundRepeats == null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return ResponseEntity.badRequest().build();
         }
 
         if (currentPhaseIndex < 0 || currentPhaseIndex >= player.getNumberOfErrorsByPhase().length) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return ResponseEntity.badRequest().build();
         }
 
+        // força reatribuição para Hibernate detectar mudanças
+        Integer[] errors = player.getNumberOfErrorsByPhase();
+        errors[currentPhaseIndex] = numberOfErrors;
+        player.setNumberOfErrorsByPhase(errors);
+
+        Integer[] repeats = player.getNumberOfSoundRepeatsByPhase();
+        repeats[currentPhaseIndex] = numberOfSoundRepeats;
+        player.setNumberOfSoundRepeatsByPhase(repeats);
+
         player.setCurrentPhaseIndex(currentPhaseIndex);
-        player.getNumberOfErrorsByPhase()[currentPhaseIndex] = numberOfErrors;
-        player.getNumberOfSoundRepeatsByPhase()[currentPhaseIndex] = numberOfSoundRepeats;
 
         jogadorRepository.save(player);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        return ResponseEntity.noContent().build();
     }
 }
