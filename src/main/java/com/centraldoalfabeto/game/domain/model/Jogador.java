@@ -29,12 +29,12 @@ public class Jogador {
     @PostLoad
     @PostPersist
     public void ensureArraysInitialized() {
-        if (this.numberOfErrorsByPhase == null || this.numberOfErrorsByPhase.length == 0) {
-            this.numberOfErrorsByPhase = new Integer[10];
+        if (this.numberOfErrorsByPhase == null || this.numberOfErrorsByPhase.length == 0 || this.numberOfErrorsByPhase.length != 50) {
+            this.numberOfErrorsByPhase = new Integer[50];
             Arrays.fill(this.numberOfErrorsByPhase, 0);
         }
-        if (this.numberOfSoundRepeatsByPhase == null || this.numberOfSoundRepeatsByPhase.length == 0) {
-            this.numberOfSoundRepeatsByPhase = new Integer[10];
+        if (this.numberOfSoundRepeatsByPhase == null || this.numberOfSoundRepeatsByPhase.length == 0 || this.numberOfSoundRepeatsByPhase.length != 50) {
+            this.numberOfSoundRepeatsByPhase = new Integer[50];
             Arrays.fill(this.numberOfSoundRepeatsByPhase, 0);
         }
     }
