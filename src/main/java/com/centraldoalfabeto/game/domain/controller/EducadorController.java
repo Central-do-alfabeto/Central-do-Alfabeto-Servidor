@@ -10,12 +10,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.Optional;
 import java.util.Set;
 
 @RestController
 @RequestMapping("/educators")
 public class EducadorController {
+
     @Autowired
     private EducadorService educadorService;
 
@@ -28,31 +30,32 @@ public class EducadorController {
     @PostMapping("/register")
     public ResponseEntity<Void> registerEducator(@RequestBody Educador educator) {
         if (educator.getEmail() == null || educator.getFullName() == null || educator.getPassword() == null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return ResponseEntity.badRequest().build();
         }
         educadorService.save(educator);
-        return new ResponseEntity<>(HttpStatus.CREATED);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @PostMapping("/student-progress")
     public ResponseEntity<StudentProgressDTO> getStudentProgress(@RequestBody Jogador student) {
         if (student.getId() == null) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return ResponseEntity.badRequest().build();
         }
 
         Optional<Jogador> optionalJogador = jogadorRepository.findById(student.getId());
 
         if (optionalJogador.isPresent()) {
             Jogador jogador = optionalJogador.get();
+
             StudentProgressDTO progressDTO = new StudentProgressDTO();
             progressDTO.setCurrentPhaseIndex(jogador.getCurrentPhaseIndex());
             progressDTO.setNumberOfErrorsByPhase(jogador.getNumberOfErrorsByPhase());
             progressDTO.setNumberOfSoundRepeatsByPhase(jogador.getNumberOfSoundRepeatsByPhase());
-            
-            return new ResponseEntity<>(progressDTO, HttpStatus.OK);
+
+            return ResponseEntity.ok(progressDTO);
         }
 
-        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        return ResponseEntity.notFound().build();
     }
 
     @PutMapping("/{id}/updateStudentIds")
@@ -62,13 +65,13 @@ public class EducadorController {
 
         Optional<Educador> optionalEducator = educadorRepository.findById(id);
         if (optionalEducator.isEmpty()) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            return ResponseEntity.notFound().build();
         }
 
         Educador educator = optionalEducator.get();
         educator.setStudentIds(studentIds);
 
         Educador updatedEducator = educadorService.save(educator);
-        return new ResponseEntity<>(updatedEducator, HttpStatus.OK);
+        return ResponseEntity.ok(updatedEducator);
     }
 }
