@@ -49,7 +49,7 @@ public class JogadorController {
 
     @PostMapping("/login")
     public ResponseEntity<Jogador> loginPlayer(@RequestBody Jogador player) {
-        Optional<Jogador> optionalPlayer = jogadorRepository.findByUsername(player.getFullName());
+        Optional<Jogador> optionalPlayer = jogadorRepository.findByFullName(player.getFullName());
 
         if (optionalPlayer.isPresent() && optionalPlayer.get().getPassword().equals(player.getPassword())) {
             return new ResponseEntity<>(optionalPlayer.get(), HttpStatus.OK);
