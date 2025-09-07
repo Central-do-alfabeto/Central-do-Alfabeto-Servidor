@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 @RestController
 @RequestMapping("/players")
 public class JogadorController {
-
     private static final Logger logger = LoggerFactory.getLogger(JogadorController.class);
 
     @Autowired
@@ -24,14 +23,6 @@ public class JogadorController {
     public ResponseEntity<Jogador> registerPlayer(@RequestBody Jogador player) {
         if (player.getFullName() == null || player.getEmail() == null || player.getPassword() == null) {
             return ResponseEntity.badRequest().build();
-        }
-
-        // garante que os arrays não venham nulos
-        if (player.getNumberOfErrorsByPhase() == null) {
-            player.setNumberOfErrorsByPhase(new Integer[10]);
-        }
-        if (player.getNumberOfSoundRepeatsByPhase() == null) {
-            player.setNumberOfSoundRepeatsByPhase(new Integer[10]);
         }
 
         Jogador newPlayer = jogadorRepository.save(player);
@@ -56,26 +47,19 @@ public class JogadorController {
         Integer numberOfErrors = progressData.getNumberOfErrors();
         Integer numberOfSoundRepeats = progressData.getNumberOfSoundRepeats();
 
-        // validação dos dados
         if (currentPhaseIndex == null || numberOfErrors == null || numberOfSoundRepeats == null) {
             return ResponseEntity.badRequest().build();
         }
-
+        
         if (currentPhaseIndex < 0 || currentPhaseIndex >= player.getNumberOfErrorsByPhase().length) {
             return ResponseEntity.badRequest().build();
         }
-
-        // força reatribuição para Hibernate detectar mudanças
-        Integer[] errors = player.getNumberOfErrorsByPhase();
-        errors[currentPhaseIndex] = numberOfErrors;
-        player.setNumberOfErrorsByPhase(errors);
-
-        Integer[] repeats = player.getNumberOfSoundRepeatsByPhase();
-        repeats[currentPhaseIndex] = numberOfSoundRepeats;
-        player.setNumberOfSoundRepeatsByPhase(repeats);
-
+        
+        player.getNumberOfErrorsByPhase()[currentPhaseIndex] = numberOfErrors;
+        player.getNumberOfSoundRepeatsByPhase()[currentPhaseIndex] = numberOfSoundRepeats;
+        
         player.setCurrentPhaseIndex(currentPhaseIndex);
-
+        
         jogadorRepository.save(player);
         return ResponseEntity.noContent().build();
     }
