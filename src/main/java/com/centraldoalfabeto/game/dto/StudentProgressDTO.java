@@ -5,6 +5,6 @@ import lombok.Data;
 @Data
 public class StudentProgressDTO {
     private Integer currentPhaseIndex;
-    private int[] numberOfErrorsByPhase;
-    private int[] numberOfSoundRepeatsByPhase;
+    private Integer[] numberOfErrorsByPhase;
+    private Integer[] numberOfSoundRepeatsByPhase;
 }
