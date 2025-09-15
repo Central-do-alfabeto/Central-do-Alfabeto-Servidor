@@ -29,7 +29,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDTO loginData) {
-        if (loginData.getEmail() == null || loginData.getPassword() == null || loginData.getIsStudent() == null) {
+        if (loginData.getEmail() == null || loginData.getPassword() == null) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
