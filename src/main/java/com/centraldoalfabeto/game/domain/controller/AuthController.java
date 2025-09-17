@@ -3,8 +3,7 @@ package com.centraldoalfabeto.game.domain.controller;
 import com.centraldoalfabeto.game.domain.model.Educador;
 import com.centraldoalfabeto.game.domain.model.Jogador;
 import com.centraldoalfabeto.game.dto.LoginRequestDTO;
-import com.centraldoalfabeto.game.dto.LoginResponseDTO;
-import com.centraldoalfabeto.game.dto.PlayerLoginResponseDTO;
+import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
 import com.centraldoalfabeto.game.repository.EducadorRepository;
 import com.centraldoalfabeto.game.repository.JogadorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +27,7 @@ public class AuthController {
     private EducadorRepository educadorRepository;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequestDTO loginData) {
+    public ResponseEntity<UnifiedLoginResponseDTO> login(@RequestBody LoginRequestDTO loginData) {
         if (loginData.getEmail() == null || loginData.getPassword() == null) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
@@ -38,9 +37,8 @@ public class AuthController {
 
             if (optionalJogador.isPresent() && optionalJogador.get().getPassword().equals(loginData.getPassword())) {
                 Jogador foundJogador = optionalJogador.get();
-                PlayerLoginResponseDTO responseDTO = new PlayerLoginResponseDTO();
-                responseDTO.setId(foundJogador.getId());
-                responseDTO.setCurrentPhaseIndex(foundJogador.getCurrentPhaseIndex());
+
+                UnifiedLoginResponseDTO responseDTO = new UnifiedLoginResponseDTO(foundJogador.getId(), true, foundJogador.getCurrentPhaseIndex());
                 return new ResponseEntity<>(responseDTO, HttpStatus.OK);
             }
         } else {
@@ -56,10 +54,8 @@ public class AuthController {
                         optionalJogador.ifPresent(jogador -> students.put(jogador.getId(), jogador.getFullName()));
                     }
                 }
-
-                LoginResponseDTO responseDTO = new LoginResponseDTO();
-                responseDTO.setEducadorId(foundEducador.getId());
-                responseDTO.setStudents(students);
+                
+                UnifiedLoginResponseDTO responseDTO = new UnifiedLoginResponseDTO(foundEducador.getId(), false, students);
                 return new ResponseEntity<>(responseDTO, HttpStatus.OK);
             }
         }
