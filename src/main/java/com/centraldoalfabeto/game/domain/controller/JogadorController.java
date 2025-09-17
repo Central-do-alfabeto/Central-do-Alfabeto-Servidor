@@ -25,6 +25,11 @@ public class JogadorController {
             return ResponseEntity.badRequest().build();
         }
 
+        Optional<Jogador> existingPlayer = jogadorRepository.findByEmail(player.getEmail());
+        if (existingPlayer.isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+        
         Jogador newPlayer = jogadorRepository.save(player);
         return ResponseEntity.status(HttpStatus.CREATED).body(newPlayer);
     }
