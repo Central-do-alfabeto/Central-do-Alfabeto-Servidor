@@ -32,6 +32,12 @@ public class EducadorController {
         if (educator.getEmail() == null || educator.getFullName() == null || educator.getPassword() == null) {
             return ResponseEntity.badRequest().build();
         }
+
+        Optional<Educador> existingEducator = educadorRepository.findByEmail(educator.getEmail());
+        if (existingEducator.isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+        
         educadorService.save(educator);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
