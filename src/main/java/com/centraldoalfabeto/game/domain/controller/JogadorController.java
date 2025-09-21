@@ -3,6 +3,7 @@ package com.centraldoalfabeto.game.domain.controller;
 import com.centraldoalfabeto.game.domain.model.Jogador;
 import com.centraldoalfabeto.game.repository.JogadorRepository;
 import com.centraldoalfabeto.game.dto.ProgressUpdateDTO;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,9 @@ public class JogadorController {
     @Autowired
     private JogadorRepository jogadorRepository;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+    
     @PostMapping("/register")
     public ResponseEntity<Jogador> registerPlayer(@RequestBody Jogador player) {
         if (player.getFullName() == null || player.getEmail() == null || player.getPassword() == null) {
@@ -29,7 +33,9 @@ public class JogadorController {
         if (existingPlayer.isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
-        
+
+        player.setPassword(passwordEncoder.encode(player.getPassword()));
+
         Jogador newPlayer = jogadorRepository.save(player);
         return ResponseEntity.status(HttpStatus.CREATED).body(newPlayer);
     }
