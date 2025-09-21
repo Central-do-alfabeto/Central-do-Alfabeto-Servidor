@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Optional;
 import java.util.Set;
 
@@ -27,6 +27,9 @@ public class EducadorController {
     @Autowired
     private JogadorRepository jogadorRepository;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @PostMapping("/register")
     public ResponseEntity<Void> registerEducator(@RequestBody Educador educator) {
         if (educator.getEmail() == null || educator.getFullName() == null || educator.getPassword() == null) {
@@ -37,6 +40,8 @@ public class EducadorController {
         if (existingEducator.isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
+        
+        educator.setPassword(passwordEncoder.encode(educator.getPassword()));
         
         educadorService.save(educator);
         return ResponseEntity.status(HttpStatus.CREATED).build();
