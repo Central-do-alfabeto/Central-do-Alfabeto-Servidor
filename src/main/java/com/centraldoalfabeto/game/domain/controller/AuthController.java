@@ -9,6 +9,7 @@ import com.centraldoalfabeto.game.repository.JogadorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +27,9 @@ public class AuthController {
     @Autowired
     private EducadorRepository educadorRepository;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @PostMapping("/login")
     public ResponseEntity<UnifiedLoginResponseDTO> login(@RequestBody LoginRequestDTO loginData) {
         if (loginData.getEmail() == null || loginData.getPassword() == null) {
@@ -35,18 +39,16 @@ public class AuthController {
         if (loginData.getIsStudent()) {
             Optional<Jogador> optionalJogador = jogadorRepository.findByEmail(loginData.getEmail());
 
-            if (optionalJogador.isPresent() && optionalJogador.get().getPassword().equals(loginData.getPassword())) {
+            if (optionalJogador.isPresent() && passwordEncoder.matches(loginData.getPassword(), optionalJogador.get().getPassword())) {
                 Jogador foundJogador = optionalJogador.get();
-
                 UnifiedLoginResponseDTO responseDTO = new UnifiedLoginResponseDTO(foundJogador.getId(), true, foundJogador.getCurrentPhaseIndex());
                 return new ResponseEntity<>(responseDTO, HttpStatus.OK);
             }
         } else {
             Optional<Educador> optionalEducador = educadorRepository.findByEmail(loginData.getEmail());
 
-            if (optionalEducador.isPresent() && optionalEducador.get().getPassword().equals(loginData.getPassword())) {
+            if (optionalEducador.isPresent() && passwordEncoder.matches(loginData.getPassword(), optionalEducador.get().getPassword())) {
                 Educador foundEducador = optionalEducador.get();
-
                 Map<Long, String> students = new HashMap<>();
                 if (foundEducador.getStudentIds() != null && !foundEducador.getStudentIds().isEmpty()) {
                     for (Long studentId : foundEducador.getStudentIds()) {
@@ -54,7 +56,6 @@ public class AuthController {
                         optionalJogador.ifPresent(jogador -> students.put(jogador.getId(), jogador.getFullName()));
                     }
                 }
-                
                 UnifiedLoginResponseDTO responseDTO = new UnifiedLoginResponseDTO(foundEducador.getId(), false, students);
                 return new ResponseEntity<>(responseDTO, HttpStatus.OK);
             }
