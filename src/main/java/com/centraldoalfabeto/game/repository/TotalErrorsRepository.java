@@ -8,5 +8,5 @@ import java.util.List;
 
 @Repository
 public interface TotalErrorsRepository extends JpaRepository<TotalErrors, Long> {
-    List<TotalErrors> findByPlayersId(Long playersId);
+    List<TotalErrors> findErrorsByPlayerId(Long playerId);
 }
