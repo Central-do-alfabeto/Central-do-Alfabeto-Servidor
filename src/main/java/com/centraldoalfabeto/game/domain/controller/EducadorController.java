@@ -75,12 +75,12 @@ public class EducadorController {
     
             List<TotalErrors> errors = totalErrorsRepository.findErrorsByPlayerId(jogador.getId());
             Map<Integer, Integer> errorsByPhase = errors.stream()
-                .collect(Collectors.toMap(TotalErrors::getPhase, TotalErrors::getNumberOfErrors));
+                .collect(Collectors.toMap(TotalErrors::getCurrentPhaseIndex, TotalErrors::getValue));
             progressDTO.setNumberOfErrorsByPhase(errorsByPhase);
     
             List<TotalAudioReproductions> soundRepeats = totalAudioReproductionsRepository.findSoundRepeatsByPlayerId(jogador.getId());
             Map<Integer, Integer> soundRepeatsByPhase = soundRepeats.stream()
-                .collect(Collectors.toMap(TotalAudioReproductions::getPhase, TotalAudioReproductions::getNumberOfSoundRepeats));
+                .collect(Collectors.toMap(TotalAudioReproductions::getCurrentPhaseIndex, TotalAudioReproductions::getValue));
             progressDTO.setNumberOfSoundRepeatsByPhase(soundRepeatsByPhase);
             
             return ResponseEntity.ok(progressDTO);
