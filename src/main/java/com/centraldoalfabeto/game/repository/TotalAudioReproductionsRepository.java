@@ -8,5 +8,5 @@ import java.util.List;
 
 @Repository
 public interface TotalAudioReproductionsRepository extends JpaRepository<TotalAudioReproductions, Long> {
-    List<TotalAudioReproductions> findByPlayersId(Long playersId);
+    List<TotalAudioReproductions> findSoundRepeatsByPlayerId(Long playerId);
 }
