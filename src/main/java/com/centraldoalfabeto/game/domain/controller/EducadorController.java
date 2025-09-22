@@ -11,15 +11,16 @@ import com.centraldoalfabeto.game.service.EducadorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/educators")
 public class EducadorController {
+
     @Autowired
     private EducadorService educadorService;
 
@@ -74,9 +75,6 @@ public class EducadorController {
             progressDTO.setNumberOfErrorsByPhase(errorsByPhase);
             progressDTO.setNumberOfSoundRepeatsByPhase(soundRepeatsByPhase);
             
-            progressDTO.setNumberOfErrorsByPhase(Map.of(1, 5, 2, 3));
-            progressDTO.setNumberOfSoundRepeatsByPhase(Map.of(1, 10, 2, 7));
-
             return ResponseEntity.ok(progressDTO);
         }
 
