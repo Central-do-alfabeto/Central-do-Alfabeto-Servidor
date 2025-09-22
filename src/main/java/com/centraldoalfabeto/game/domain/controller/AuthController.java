@@ -41,6 +41,7 @@ public class AuthController {
 
             if (optionalJogador.isPresent() && passwordEncoder.matches(loginData.getPassword(), optionalJogador.get().getPassword())) {
                 Jogador foundJogador = optionalJogador.get();
+
                 UnifiedLoginResponseDTO responseDTO = new UnifiedLoginResponseDTO(foundJogador.getId(), true, foundJogador.getCurrentPhaseIndex());
                 return new ResponseEntity<>(responseDTO, HttpStatus.OK);
             }
