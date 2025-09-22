@@ -5,6 +5,8 @@ import com.centraldoalfabeto.game.domain.model.Jogador;
 import com.centraldoalfabeto.game.dto.StudentProgressDTO;
 import com.centraldoalfabeto.game.repository.EducadorRepository;
 import com.centraldoalfabeto.game.repository.JogadorRepository;
+import com.centraldoalfabeto.game.repository.TotalErrorsRepository;
+import com.centraldoalfabeto.game.repository.TotalAudioReproductionsRepository;
 import com.centraldoalfabeto.game.service.EducadorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -13,11 +15,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/educators")
 public class EducadorController {
-
     @Autowired
     private EducadorService educadorService;
 
@@ -29,6 +31,12 @@ public class EducadorController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private TotalErrorsRepository totalErrorsRepository;
+    
+    @Autowired
+    private TotalAudioReproductionsRepository totalAudioReproductionsRepository;
 
     @PostMapping("/register")
     public ResponseEntity<Void> registerEducator(@RequestBody Educador educator) {
@@ -57,11 +65,17 @@ public class EducadorController {
 
         if (optionalJogador.isPresent()) {
             Jogador jogador = optionalJogador.get();
-
             StudentProgressDTO progressDTO = new StudentProgressDTO();
             progressDTO.setCurrentPhaseIndex(jogador.getCurrentPhaseIndex());
-            progressDTO.setNumberOfErrorsByPhase(jogador.getNumberOfErrorsByPhase());
-            progressDTO.setNumberOfSoundRepeatsByPhase(jogador.getNumberOfSoundRepeatsByPhase());
+
+            Map<Integer, Integer> errorsByPhase = totalErrorsRepository.findErrorsByPlayerId(jogador.getId());
+            Map<Integer, Integer> soundRepeatsByPhase = totalAudioReproductionsRepository.findSoundRepeatsByPlayerId(jogador.getId());
+
+            progressDTO.setNumberOfErrorsByPhase(errorsByPhase);
+            progressDTO.setNumberOfSoundRepeatsByPhase(soundRepeatsByPhase);
+            
+            progressDTO.setNumberOfErrorsByPhase(Map.of(1, 5, 2, 3));
+            progressDTO.setNumberOfSoundRepeatsByPhase(Map.of(1, 10, 2, 7));
 
             return ResponseEntity.ok(progressDTO);
         }
