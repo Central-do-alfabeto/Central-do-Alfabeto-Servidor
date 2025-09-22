@@ -1,7 +1,11 @@
 package com.centraldoalfabeto.game.domain.controller;
 
 import com.centraldoalfabeto.game.domain.model.Jogador;
+import com.centraldoalfabeto.game.domain.model.TotalErrors;
+import com.centraldoalfabeto.game.domain.model.TotalAudioReproductions;
 import com.centraldoalfabeto.game.repository.JogadorRepository;
+import com.centraldoalfabeto.game.repository.TotalErrorsRepository;
+import com.centraldoalfabeto.game.repository.TotalAudioReproductionsRepository;
 import com.centraldoalfabeto.game.dto.ProgressUpdateDTO;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +23,12 @@ public class JogadorController {
 
     @Autowired
     private JogadorRepository jogadorRepository;
+
+    @Autowired
+    private TotalErrorsRepository totalErrorsRepository;
+
+    @Autowired
+    private TotalAudioReproductionsRepository totalAudioReproductionsRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -62,12 +72,17 @@ public class JogadorController {
             return ResponseEntity.badRequest().build();
         }
         
-        if (currentPhaseIndex < 0 || currentPhaseIndex >= player.getNumberOfErrorsByPhase().length) {
-            return ResponseEntity.badRequest().build();
-        }
-        
-        player.getNumberOfErrorsByPhase()[currentPhaseIndex] = numberOfErrors;
-        player.getNumberOfSoundRepeatsByPhase()[currentPhaseIndex] = numberOfSoundRepeats;
+        TotalErrors totalErrors = new TotalErrors();
+        totalErrors.setJogador(player);
+        totalErrors.setCurrentPhaseIndex(currentPhaseIndex);
+        totalErrors.setValue(numberOfErrors);
+        totalErrorsRepository.save(totalErrors);
+
+        TotalAudioReproductions totalAudioReproductions = new TotalAudioReproductions();
+        totalAudioReproductions.setJogador(player);
+        totalAudioReproductions.setCurrentPhaseIndex(currentPhaseIndex);
+        totalAudioReproductions.setValue(numberOfSoundRepeats);
+        totalAudioReproductionsRepository.save(totalAudioReproductions);
         
         player.setCurrentPhaseIndex(currentPhaseIndex);
         
