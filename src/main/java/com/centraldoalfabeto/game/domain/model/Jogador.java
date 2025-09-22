@@ -3,7 +3,6 @@ package com.centraldoalfabeto.game.domain.model;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.util.Arrays;
 
 @Entity
 @Table(name = "players")
@@ -17,25 +16,7 @@ public class Jogador {
     private String fullName;
     private String email;
     private String password;
-
+    
+    @Column(name = "current_phase_index")
     private Integer currentPhaseIndex;
-
-    @Column(name = "errors_by_phase", columnDefinition = "integer[]")
-    private Integer[] numberOfErrorsByPhase;
-
-    @Column(name = "repeats_by_phase", columnDefinition = "integer[]")
-    private Integer[] numberOfSoundRepeatsByPhase;
-
-    @PostLoad
-    @PostPersist
-    public void ensureArraysInitialized() {
-        if (this.numberOfErrorsByPhase == null || this.numberOfErrorsByPhase.length == 0 || this.numberOfErrorsByPhase.length != 50) {
-            this.numberOfErrorsByPhase = new Integer[50];
-            Arrays.fill(this.numberOfErrorsByPhase, 0);
-        }
-        if (this.numberOfSoundRepeatsByPhase == null || this.numberOfSoundRepeatsByPhase.length == 0 || this.numberOfSoundRepeatsByPhase.length != 50) {
-            this.numberOfSoundRepeatsByPhase = new Integer[50];
-            Arrays.fill(this.numberOfSoundRepeatsByPhase, 0);
-        }
-    }
 }
