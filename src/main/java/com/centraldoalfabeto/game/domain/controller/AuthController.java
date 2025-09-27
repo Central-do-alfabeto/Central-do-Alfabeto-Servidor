@@ -2,10 +2,15 @@ package com.centraldoalfabeto.game.domain.controller;
 
 import com.centraldoalfabeto.game.domain.model.Educador;
 import com.centraldoalfabeto.game.domain.model.Jogador;
+import com.centraldoalfabeto.game.domain.model.TotalAudioReproductions;
+import com.centraldoalfabeto.game.domain.model.TotalErrors;
 import com.centraldoalfabeto.game.dto.LoginRequestDTO;
 import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
+import com.centraldoalfabeto.game.dto.StudentSummaryDTO;
 import com.centraldoalfabeto.game.repository.EducadorRepository;
 import com.centraldoalfabeto.game.repository.JogadorRepository;
+import com.centraldoalfabeto.game.repository.TotalErrorsRepository;
+import com.centraldoalfabeto.game.repository.TotalAudioReproductionsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,9 +19,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/auth")
@@ -29,6 +36,12 @@ public class AuthController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+    
+    @Autowired
+    private TotalErrorsRepository totalErrorsRepository;
+    
+    @Autowired
+    private TotalAudioReproductionsRepository totalAudioReproductionsRepository;
 
     @PostMapping("/login")
     public ResponseEntity<UnifiedLoginResponseDTO> login(@RequestBody LoginRequestDTO loginData) {
@@ -50,14 +63,38 @@ public class AuthController {
 
             if (optionalEducador.isPresent() && passwordEncoder.matches(loginData.getPassword(), optionalEducador.get().getSenha())) {
                 Educador foundEducador = optionalEducador.get();
-                Map<Long, String> students = new HashMap<>();
+                
+                List<StudentSummaryDTO> studentSummaries = new ArrayList<>();
                 if (foundEducador.getStudentIds() != null && !foundEducador.getStudentIds().isEmpty()) {
+                    
                     for (Long studentId : foundEducador.getStudentIds()) {
                         Optional<Jogador> optionalJogador = jogadorRepository.findById(studentId);
-                        optionalJogador.ifPresent(jogador -> students.put(jogador.getId(), jogador.getFullName()));
+                        
+                        if (optionalJogador.isPresent()) {
+                            Jogador jogador = optionalJogador.get();
+                            
+                            StudentSummaryDTO summary = new StudentSummaryDTO(
+                                jogador.getId(), 
+                                jogador.getFullName(), 
+                                jogador.getCurrentPhaseIndex()
+                            );
+                            
+                            List<TotalErrors> errors = totalErrorsRepository.findErrorsByJogadorId(jogador.getId());
+                            Map<Integer, Integer> errorsByPhase = errors.stream()
+                                .collect(Collectors.toMap(TotalErrors::getCurrentPhaseIndex, TotalErrors::getValue));
+                            summary.setNumberOfErrorsByPhase(errorsByPhase);
+
+                            List<TotalAudioReproductions> soundRepeats = totalAudioReproductionsRepository.findSoundRepeatsByJogadorId(jogador.getId());
+                            Map<Integer, Integer> soundRepeatsByPhase = soundRepeats.stream()
+                                .collect(Collectors.toMap(TotalAudioReproductions::getCurrentPhaseIndex, TotalAudioReproductions::getValue));
+                            summary.setNumberOfSoundRepeatsByPhase(soundRepeatsByPhase);
+
+                            studentSummaries.add(summary);
+                        }
                     }
                 }
-                UnifiedLoginResponseDTO responseDTO = new UnifiedLoginResponseDTO(foundEducador.getId(), false, students);
+                
+                UnifiedLoginResponseDTO responseDTO = new UnifiedLoginResponseDTO(foundEducador.getId(), false, studentSummaries);
                 return new ResponseEntity<>(responseDTO, HttpStatus.OK);
             }
         }
