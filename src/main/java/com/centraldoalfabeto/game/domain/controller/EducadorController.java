@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/educators")
 public class EducadorController {
-
     @Autowired
     private EducadorService educadorService;
 
@@ -74,13 +73,13 @@ public class EducadorController {
             StudentProgressDTO progressDTO = new StudentProgressDTO();
             progressDTO.setCurrentPhaseIndex(jogador.getCurrentPhaseIndex());
     
-            List<TotalErrors> errors = totalErrorsRepository.findErrorsByPlayerId(jogador.getId());
+            List<TotalErrors> errors = totalErrorsRepository.findErrorsByJogadorId(jogador.getId());
 
             Map<Integer, Integer> errorsByPhase = errors.stream()
                 .collect(Collectors.toMap(TotalErrors::getCurrentPhaseIndex, TotalErrors::getValue));
             progressDTO.setNumberOfErrorsByPhase(errorsByPhase);
     
-            List<TotalAudioReproductions> soundRepeats = totalAudioReproductionsRepository.findSoundRepeatsByPlayerId(jogador.getId());
+            List<TotalAudioReproductions> soundRepeats = totalAudioReproductionsRepository.findSoundRepeatsByJogadorId(jogador.getId());
 
             Map<Integer, Integer> soundRepeatsByPhase = soundRepeats.stream()
                 .collect(Collectors.toMap(TotalAudioReproductions::getCurrentPhaseIndex, TotalAudioReproductions::getValue));
