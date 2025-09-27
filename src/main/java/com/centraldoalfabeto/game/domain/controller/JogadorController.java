@@ -35,7 +35,7 @@ public class JogadorController {
     
     @PostMapping("/register")
     public ResponseEntity<Jogador> registerPlayer(@RequestBody Jogador player) {
-        if (player.getFullName() == null || player.getEmail() == null || player.getPassword() == null) {
+        if (player.getFullName() == null || player.getEmail() == null || player.getSenha() == null) {
             return ResponseEntity.badRequest().build();
         }
 
@@ -44,7 +44,8 @@ public class JogadorController {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
 
-        player.setPassword(passwordEncoder.encode(player.getPassword()));
+        String encodedPassword = passwordEncoder.encode(player.getSenha());
+        player.setSenha(encodedPassword);
 
         Jogador newPlayer = jogadorRepository.save(player);
         return ResponseEntity.status(HttpStatus.CREATED).body(newPlayer);
