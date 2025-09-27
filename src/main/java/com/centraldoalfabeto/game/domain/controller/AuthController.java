@@ -39,7 +39,7 @@ public class AuthController {
         if (loginData.getIsStudent()) {
             Optional<Jogador> optionalJogador = jogadorRepository.findByEmail(loginData.getEmail());
 
-            if (optionalJogador.isPresent() && passwordEncoder.matches(loginData.getPassword(), optionalJogador.get().getPassword())) {
+            if (optionalJogador.isPresent() && passwordEncoder.matches(loginData.getPassword(), optionalJogador.get().getSenha())) {
                 Jogador foundJogador = optionalJogador.get();
 
                 UnifiedLoginResponseDTO responseDTO = new UnifiedLoginResponseDTO(foundJogador.getId(), true, foundJogador.getCurrentPhaseIndex());
@@ -48,7 +48,7 @@ public class AuthController {
         } else {
             Optional<Educador> optionalEducador = educadorRepository.findByEmail(loginData.getEmail());
 
-            if (optionalEducador.isPresent() && passwordEncoder.matches(loginData.getPassword(), optionalEducador.get().getPassword())) {
+            if (optionalEducador.isPresent() && passwordEncoder.matches(loginData.getPassword(), optionalEducador.get().getSenha())) {
                 Educador foundEducador = optionalEducador.get();
                 Map<Long, String> students = new HashMap<>();
                 if (foundEducador.getStudentIds() != null && !foundEducador.getStudentIds().isEmpty()) {
