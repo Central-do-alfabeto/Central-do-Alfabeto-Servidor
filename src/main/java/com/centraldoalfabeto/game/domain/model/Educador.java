@@ -14,12 +14,18 @@ public class Educador {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "nome")
     private String fullName;
+    
+    @Column(name = "email")
     private String email;
-    private String password;
+    
+    @Column(name = "senha")
+    private String senha;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "educator_students", joinColumns = @JoinColumn(name = "educator_id"))
-    @Column(name = "student_id")
+    @CollectionTable(name = "educator_alunos",
+                     joinColumns = @JoinColumn(name = "educators_id"))
+    @Column(name = "players_id")
     private Set<Long> studentIds;
 }
