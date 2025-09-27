@@ -45,7 +45,7 @@ public class EducadorController {
 
     @PostMapping("/register")
     public ResponseEntity<Void> registerEducator(@RequestBody Educador educator) {
-        if (educator.getEmail() == null || educator.getFullName() == null || educator.getPassword() == null) {
+        if (educator.getEmail() == null || educator.getFullName() == null || educator.getSenha() == null) {
             return ResponseEntity.badRequest().build();
         }
 
@@ -54,7 +54,8 @@ public class EducadorController {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
         
-        educator.setPassword(passwordEncoder.encode(educator.getPassword()));
+        String encodedPassword = passwordEncoder.encode(educator.getSenha());
+        educator.setSenha(encodedPassword);
         
         educadorService.save(educator);
         return ResponseEntity.status(HttpStatus.CREATED).build();
@@ -74,11 +75,13 @@ public class EducadorController {
             progressDTO.setCurrentPhaseIndex(jogador.getCurrentPhaseIndex());
     
             List<TotalErrors> errors = totalErrorsRepository.findErrorsByPlayerId(jogador.getId());
+
             Map<Integer, Integer> errorsByPhase = errors.stream()
                 .collect(Collectors.toMap(TotalErrors::getCurrentPhaseIndex, TotalErrors::getValue));
             progressDTO.setNumberOfErrorsByPhase(errorsByPhase);
     
             List<TotalAudioReproductions> soundRepeats = totalAudioReproductionsRepository.findSoundRepeatsByPlayerId(jogador.getId());
+
             Map<Integer, Integer> soundRepeatsByPhase = soundRepeats.stream()
                 .collect(Collectors.toMap(TotalAudioReproductions::getCurrentPhaseIndex, TotalAudioReproductions::getValue));
             progressDTO.setNumberOfSoundRepeatsByPhase(soundRepeatsByPhase);
