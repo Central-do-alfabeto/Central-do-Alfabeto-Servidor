@@ -1,0 +1,27 @@
+# Builds locais
+target/
+build/
+dist/
+nbbuild/
+nbdist/
+.nb-gradle/
+.sts4-cache
+.apt_generated
+
+# IDEs
+.idea/
+*.iws
+*.iml
+*.ipr
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.vscode/
+
+# Git
+.git
+.gitignore
+.gitattributes
+
