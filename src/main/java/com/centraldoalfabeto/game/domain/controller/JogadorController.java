@@ -6,6 +6,7 @@ import com.centraldoalfabeto.game.domain.model.TotalAudioReproductions;
 import com.centraldoalfabeto.game.repository.JogadorRepository;
 import com.centraldoalfabeto.game.repository.TotalErrorsRepository;
 import com.centraldoalfabeto.game.repository.TotalAudioReproductionsRepository;
+import com.centraldoalfabeto.game.security.JwtAuthenticatedUser;
 import com.centraldoalfabeto.game.dto.ProgressUpdateDTO;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @RestController
 @RequestMapping("/players")
@@ -44,6 +46,10 @@ public class JogadorController {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
 
+        if (player.getCurrentPhaseIndex() == null) {
+            player.setCurrentPhaseIndex(0);
+        }
+
         String encodedPassword = passwordEncoder.encode(player.getSenha());
         player.setSenha(encodedPassword);
 
@@ -54,7 +60,14 @@ public class JogadorController {
     @PutMapping("/{id}/updateProgress")
     public ResponseEntity<Void> updateProgress(
             @PathVariable Long id,
-            @RequestBody ProgressUpdateDTO progressData) {
+            @RequestBody ProgressUpdateDTO progressData,
+            @AuthenticationPrincipal JwtAuthenticatedUser authenticatedUser) {
+
+    if (authenticatedUser == null
+        || !"STUDENT".equalsIgnoreCase(authenticatedUser.getRole())
+        || !authenticatedUser.getUserId().equals(id)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
 
         logger.info("Dados recebidos para atualização: {}", progressData);
 

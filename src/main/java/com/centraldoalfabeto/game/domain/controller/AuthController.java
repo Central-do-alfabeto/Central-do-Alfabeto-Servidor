@@ -11,6 +11,7 @@ import com.centraldoalfabeto.game.repository.EducadorRepository;
 import com.centraldoalfabeto.game.repository.JogadorRepository;
 import com.centraldoalfabeto.game.repository.TotalErrorsRepository;
 import com.centraldoalfabeto.game.repository.TotalAudioReproductionsRepository;
+import com.centraldoalfabeto.game.service.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,22 +44,39 @@ public class AuthController {
     @Autowired
     private TotalAudioReproductionsRepository totalAudioReproductionsRepository;
 
+    @Autowired
+    private JwtService jwtService;
+
     @PostMapping("/login")
     public ResponseEntity<UnifiedLoginResponseDTO> login(@RequestBody LoginRequestDTO loginData) {
         if (loginData.getEmail() == null || loginData.getPassword() == null) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
-        if (loginData.getIsStudent()) {
+        Boolean requestedStudent = loginData.getIsStudent();
+
+        boolean shouldTryStudent = requestedStudent == null || Boolean.TRUE.equals(requestedStudent);
+        boolean shouldTryEducator = requestedStudent == null || Boolean.FALSE.equals(requestedStudent);
+
+        if (shouldTryStudent) {
             Optional<Jogador> optionalJogador = jogadorRepository.findByEmail(loginData.getEmail());
 
             if (optionalJogador.isPresent() && passwordEncoder.matches(loginData.getPassword(), optionalJogador.get().getSenha())) {
                 Jogador foundJogador = optionalJogador.get();
 
-                UnifiedLoginResponseDTO responseDTO = new UnifiedLoginResponseDTO(foundJogador.getId(), true, foundJogador.getCurrentPhaseIndex());
+                String token = jwtService.generateToken(foundJogador.getId(), "STUDENT", foundJogador.getEmail());
+
+                UnifiedLoginResponseDTO responseDTO = new UnifiedLoginResponseDTO(
+                    foundJogador.getId(),
+                    true,
+                    foundJogador.getCurrentPhaseIndex(),
+                    token
+                );
                 return new ResponseEntity<>(responseDTO, HttpStatus.OK);
             }
-        } else {
+        }
+
+        if (shouldTryEducator) {
             Optional<Educador> optionalEducador = educadorRepository.findByEmail(loginData.getEmail());
 
             if (optionalEducador.isPresent() && passwordEncoder.matches(loginData.getPassword(), optionalEducador.get().getSenha())) {
@@ -94,7 +112,14 @@ public class AuthController {
                     }
                 }
                 
-                UnifiedLoginResponseDTO responseDTO = new UnifiedLoginResponseDTO(foundEducador.getId(), false, studentSummaries);
+                String token = jwtService.generateToken(foundEducador.getId(), "EDUCATOR", foundEducador.getEmail());
+
+                UnifiedLoginResponseDTO responseDTO = new UnifiedLoginResponseDTO(
+                    foundEducador.getId(),
+                    false,
+                    studentSummaries,
+                    token
+                );
                 return new ResponseEntity<>(responseDTO, HttpStatus.OK);
             }
         }
