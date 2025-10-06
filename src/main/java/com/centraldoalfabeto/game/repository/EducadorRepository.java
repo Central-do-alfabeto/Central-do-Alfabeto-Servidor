@@ -9,6 +9,4 @@ import java.util.UUID;
 import java.util.Optional;
 
 public interface EducadorRepository extends JpaRepository<Educador, UUID> {
-    @Query("SELECT e FROM Educador e JOIN e.user u WHERE u.email = :email")
-    Optional<Educador> findByEmail(@Param("email") String email);
 }
