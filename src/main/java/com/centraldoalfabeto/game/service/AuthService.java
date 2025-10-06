@@ -96,4 +96,34 @@ public class AuthService {
         
         Set<UUID> studentIds = educator.getStudentIds();
         
-        if (studentIds != null && !
+        if (studentIds != null && !studentIds.isEmpty()) {
+            List<PlayersData> allStudentsData = playersDataRepository.findAllById(studentIds);
+            
+            studentSummaries = allStudentsData.stream()
+                .map(data -> {
+                    Optional<Jogador> optionalJogador = jogadorRepository.findById(data.getPlayersId());
+                    String fullName = optionalJogador.map(Jogador::getUser).map(User::getNome).orElse("Aluno Desconhecido");
+                    
+                    StudentSummaryDTO summary = new StudentSummaryDTO(
+                        data.getPlayersId(),
+                        fullName,
+                        data.getPhaseIndex()
+                    );
+                
+                    summary.setErrorsDataJson(data.getErrosTotais());
+                    summary.setSoundRepeatsDataJson(data.getAudiosTotais());
+                    return summary;
+                })
+                .collect(Collectors.toList());
+        }
+        
+        String token = jwtService.generateToken(user.getId(), "EDUCATOR", user.getEmail());
+
+        return new UnifiedLoginResponseDTO(
+            user.getId(),
+            false,
+            studentSummaries,
+            token
+        );
+    }
+}
