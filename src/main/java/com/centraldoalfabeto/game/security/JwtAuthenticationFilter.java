@@ -16,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -32,23 +33,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String authHeader = request.getHeader("Authorization");
 
-    if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
+        if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
 
-        if (jwtService.isTokenValid(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (jwtService.isTokenValid(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
                 Claims claims = jwtService.extractClaims(token);
-                Long userId = Long.parseLong(claims.getSubject());
+                
+                UUID userId = UUID.fromString(claims.getSubject()); 
+                
                 String role = claims.get("role", String.class);
                 String email = claims.get("email", String.class);
 
-        String normalizedRole = role != null ? role.toUpperCase() : "STUDENT";
-        JwtAuthenticatedUser principal = new JwtAuthenticatedUser(userId, normalizedRole, email);
+                String normalizedRole = role != null ? role.toUpperCase() : "STUDENT";
+                
+                JwtAuthenticatedUser principal = new JwtAuthenticatedUser(userId, normalizedRole, email);
 
-        List<SimpleGrantedAuthority> authorities =
-            List.of(new SimpleGrantedAuthority("ROLE_" + normalizedRole));
+                List<SimpleGrantedAuthority> authorities =
+                    List.of(new SimpleGrantedAuthority("ROLE_" + normalizedRole));
 
-        UsernamePasswordAuthenticationToken authentication =
-            new UsernamePasswordAuthenticationToken(principal, null, authorities);
+                UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(principal, null, authorities);
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
