@@ -11,7 +11,4 @@ import java.util.Optional;
 public interface JogadorRepository extends JpaRepository<Jogador, UUID> {
     @Query("SELECT e FROM Jogador e JOIN e.user u WHERE u.nome = :fullName")
     Optional<Jogador> findByFullName(@Param("fullName") String fullName);
-    
-    @Query("SELECT e FROM Jogador e JOIN e.user u WHERE u.email = :email")
-    Optional<Jogador> findByEmail(@Param("email") String email);
 }
