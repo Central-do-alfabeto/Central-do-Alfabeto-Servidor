@@ -1,106 +1,77 @@
 package com.centraldoalfabeto.game.domain.controller;
 
 import com.centraldoalfabeto.game.domain.model.Jogador;
-import com.centraldoalfabeto.game.domain.model.TotalErrors;
-import com.centraldoalfabeto.game.domain.model.TotalAudioReproductions;
-import com.centraldoalfabeto.game.repository.JogadorRepository;
-import com.centraldoalfabeto.game.repository.TotalErrorsRepository;
-import com.centraldoalfabeto.game.repository.TotalAudioReproductionsRepository;
-import com.centraldoalfabeto.game.security.JwtAuthenticatedUser;
+import com.centraldoalfabeto.game.dto.PlayerRegistrationDTO;
 import com.centraldoalfabeto.game.dto.ProgressUpdateDTO;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
+import com.centraldoalfabeto.game.security.JwtAuthenticatedUser;
+import com.centraldoalfabeto.game.service.JogadorService;
+import com.centraldoalfabeto.game.service.ProgressService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import java.util.Optional;
+
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @RestController
 @RequestMapping("/players")
 public class JogadorController {
     private static final Logger logger = LoggerFactory.getLogger(JogadorController.class);
 
-    @Autowired
-    private JogadorRepository jogadorRepository;
+    private final JogadorService jogadorService;
+    private final ProgressService progressService;
 
     @Autowired
-    private TotalErrorsRepository totalErrorsRepository;
+    public JogadorController(
+        JogadorService jogadorService, 
+        ProgressService progressService
+    ) {
+        this.jogadorService = jogadorService;
+        this.progressService = progressService;
+    }
 
-    @Autowired
-    private TotalAudioReproductionsRepository totalAudioReproductionsRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-    
     @PostMapping("/register")
-    public ResponseEntity<Jogador> registerPlayer(@RequestBody Jogador player) {
-        if (player.getFullName() == null || player.getEmail() == null || player.getSenha() == null) {
-            return ResponseEntity.badRequest().build();
+    public ResponseEntity<UnifiedLoginResponseDTO> registerPlayer(@RequestBody PlayerRegistrationDTO registrationDTO) {
+        if (registrationDTO.getEmail() == null || registrationDTO.getSenha() == null) {
+             return ResponseEntity.badRequest().build();
         }
 
-        Optional<Jogador> existingPlayer = jogadorRepository.findByEmail(player.getEmail());
-        if (existingPlayer.isPresent()) {
+        try {
+            UnifiedLoginResponseDTO responseDTO = jogadorService.registerPlayer(registrationDTO);
+            return ResponseEntity.status(HttpStatus.CREATED).body(responseDTO);
+            
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (Exception e) {
+            logger.error("Erro no registro do jogador: ", e);
+            return ResponseEntity.internalServerError().build();
         }
-
-        if (player.getCurrentPhaseIndex() == null) {
-            player.setCurrentPhaseIndex(0);
-        }
-
-        String encodedPassword = passwordEncoder.encode(player.getSenha());
-        player.setSenha(encodedPassword);
-
-        Jogador newPlayer = jogadorRepository.save(player);
-        return ResponseEntity.status(HttpStatus.CREATED).body(newPlayer);
     }
 
     @PutMapping("/{id}/updateProgress")
     public ResponseEntity<Void> updateProgress(
-            @PathVariable Long id,
+            @PathVariable UUID id, 
             @RequestBody ProgressUpdateDTO progressData,
             @AuthenticationPrincipal JwtAuthenticatedUser authenticatedUser) {
 
-    if (authenticatedUser == null
-        || !"STUDENT".equalsIgnoreCase(authenticatedUser.getRole())
-        || !authenticatedUser.getUserId().equals(id)) {
+        if (authenticatedUser == null
+                || !"STUDENT".equalsIgnoreCase(authenticatedUser.getRole())
+                || !authenticatedUser.getUserId().equals(id)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        logger.info("Dados recebidos para atualização: {}", progressData);
+        logger.info("Dados recebidos para atualização para player {}: {}", id, progressData);
 
-        Optional<Jogador> optionalPlayer = jogadorRepository.findById(id);
-        if (optionalPlayer.isEmpty()) {
-            return ResponseEntity.notFound().build();
+        try {
+            progressService.updateProgress(authenticatedUser, progressData);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            logger.error("Erro na atualização do progresso: ", e);
+            return ResponseEntity.internalServerError().build();
         }
-
-        Jogador player = optionalPlayer.get();
-
-        Integer currentPhaseIndex = progressData.getCurrentPhaseIndex();
-        Integer numberOfErrors = progressData.getNumberOfErrors();
-        Integer numberOfSoundRepeats = progressData.getNumberOfSoundRepeats();
-
-        if (currentPhaseIndex == null || numberOfErrors == null || numberOfSoundRepeats == null) {
-            return ResponseEntity.badRequest().build();
-        }
-        
-        TotalErrors totalErrors = new TotalErrors();
-        totalErrors.setJogador(player);
-        totalErrors.setCurrentPhaseIndex(currentPhaseIndex);
-        totalErrors.setValue(numberOfErrors);
-        totalErrorsRepository.save(totalErrors);
-
-        TotalAudioReproductions totalAudioReproductions = new TotalAudioReproductions();
-        totalAudioReproductions.setJogador(player);
-        totalAudioReproductions.setCurrentPhaseIndex(currentPhaseIndex);
-        totalAudioReproductions.setValue(numberOfSoundRepeats);
-        totalAudioReproductionsRepository.save(totalAudioReproductions);
-        
-        player.setCurrentPhaseIndex(currentPhaseIndex);
-        
-        jogadorRepository.save(player);
-        return ResponseEntity.noContent().build();
     }
 }
