@@ -91,10 +91,25 @@ public class EducadorService {
         
         return dto;
     }
-
-    public Educador updateStudentIds(UUID educatorId, Set<UUID> studentIds) throws NoSuchElementException {
+    
+    @Transactional
+    public Educador updateStudentIds(UUID educatorId, Set<UUID> studentIds) throws NoSuchElementException, IllegalArgumentException {
         Educador educator = educadorRepository.findById(educatorId)
             .orElseThrow(() -> new NoSuchElementException("Educador não encontrado."));
+        
+        if (studentIds != null && !studentIds.isEmpty()) {
+            Set<UUID> existingPlayerIds = jogadorRepository.findAllById(studentIds).stream()
+                .map(Jogador::getUserId)
+                .collect(Collectors.toSet());
+            
+            if (existingPlayerIds.size() != studentIds.size()) {
+                Set<UUID> invalidIds = studentIds.stream()
+                    .filter(id -> !existingPlayerIds.contains(id))
+                    .collect(Collectors.toSet());
+                
+                throw new IllegalArgumentException("Um ou mais IDs de aluno são inválidos ou não encontrados: " + invalidIds);
+            }
+        }
         
         educator.setStudentIds(studentIds);
         
