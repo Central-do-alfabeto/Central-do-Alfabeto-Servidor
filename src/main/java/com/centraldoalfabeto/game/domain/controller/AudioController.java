@@ -21,23 +21,18 @@ public class AudioController {
     @PostMapping("/transcribe")
     public ResponseEntity<String> transcribeAudio(@RequestParam("audioFile") MultipartFile audioFile) {
         try (SpeechClient speechClient = SpeechClient.create()) {
-            // Lê o áudio
             ByteString audioBytes = ByteString.copyFrom(audioFile.getBytes());
 
-            // Configura o reconhecimento de fala para português
             RecognitionConfig config = RecognitionConfig.newBuilder()
                     .setLanguageCode("pt-BR")
                     .build();
 
-            // Configura o áudio
             RecognitionAudio audio = RecognitionAudio.newBuilder()
                     .setContent(audioBytes)
                     .build();
 
-            // Faz o pedido para a API do Google
             com.google.cloud.speech.v1.RecognizeResponse response = speechClient.recognize(config, audio);
             
-            // Extrai o texto da resposta
             StringBuilder transcript = new StringBuilder();
             for (SpeechRecognitionResult result : response.getResultsList()) {
                 SpeechRecognitionAlternative alternative = result.getAlternativesList().get(0);
