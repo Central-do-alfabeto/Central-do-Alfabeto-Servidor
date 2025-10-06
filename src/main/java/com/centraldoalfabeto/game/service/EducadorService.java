@@ -3,12 +3,14 @@ package com.centraldoalfabeto.game.service;
 import com.centraldoalfabeto.game.domain.model.Educador;
 import com.centraldoalfabeto.game.domain.model.User;
 import com.centraldoalfabeto.game.domain.model.PlayersData;
+import com.centraldoalfabeto.game.domain.model.Jogador;
 import com.centraldoalfabeto.game.dto.EducatorRegistrationDTO;
 import com.centraldoalfabeto.game.dto.StudentProgressDTO;
 import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
 import com.centraldoalfabeto.game.repository.EducadorRepository;
 import com.centraldoalfabeto.game.repository.UserRepository;
 import com.centraldoalfabeto.game.repository.PlayersDataRepository;
+import com.centraldoalfabeto.game.repository.JogadorRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,12 +19,14 @@ import org.springframework.stereotype.Service;
 import java.util.Set;
 import java.util.UUID;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 @Service
 public class EducadorService {
     private final EducadorRepository educadorRepository;
     private final UserRepository userRepository;
     private final PlayersDataRepository playersDataRepository;
+    private final JogadorRepository jogadorRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
@@ -31,19 +35,20 @@ public class EducadorService {
         EducadorRepository educadorRepository,
         UserRepository userRepository,
         PlayersDataRepository playersDataRepository,
+        JogadorRepository jogadorRepository,
         PasswordEncoder passwordEncoder,
         JwtService jwtService
     ) {
         this.educadorRepository = educadorRepository;
         this.userRepository = userRepository;
         this.playersDataRepository = playersDataRepository;
+        this.jogadorRepository = jogadorRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
     }
 
     @Transactional
     public UnifiedLoginResponseDTO registerEducator(EducatorRegistrationDTO dto) throws IllegalArgumentException {
-        
         if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
             throw new IllegalArgumentException("Email já registrado.");
         }
@@ -65,13 +70,12 @@ public class EducadorService {
         return new UnifiedLoginResponseDTO(
             user.getId(), 
             false,
-            null,
+            (Integer) null,
             token
         );
     }
     
     public StudentProgressDTO getStudentProgress(UUID educatorId, UUID studentId) throws SecurityException, NoSuchElementException {
-        
         Educador educator = educadorRepository.findById(educatorId)
             .orElseThrow(() -> new NoSuchElementException("Educador não encontrado."));
         
@@ -111,7 +115,7 @@ public class EducadorService {
             }
         }
         
-        educator.setStudentIds(studentIds);
+        educator.setStudentIds(studentIds); 
         
         return educadorRepository.save(educator);
     }
