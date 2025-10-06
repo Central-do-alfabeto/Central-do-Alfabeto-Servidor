@@ -25,4 +25,10 @@ public class User {
     
     @Column(name = "metadados", columnDefinition = "jsonb") 
     private String metadados;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Educador educador;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Jogador jogador;
 }
