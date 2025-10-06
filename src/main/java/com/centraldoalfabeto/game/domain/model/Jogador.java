@@ -1,6 +1,7 @@
 package com.centraldoalfabeto.game.domain.model;
 
 import jakarta.persistence.*;
+import java.util.UUID; 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -10,17 +11,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Jogador {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "user_id")
+    private UUID userId; 
 
-    @Column(name = "nome")
-    private String fullName;
-    
-    @Column(name = "email")
-    private String email;
-    
-    @Column(name = "senha")
-    private String senha;
+    @OneToOne
+    @MapsId
+    @JoinColumn(name = "user_id")
+    private User user;
     
     @Column(name = "current_phase_index")
     private Integer currentPhaseIndex;
