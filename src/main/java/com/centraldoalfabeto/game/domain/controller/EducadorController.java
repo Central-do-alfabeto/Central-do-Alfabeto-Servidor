@@ -1,120 +1,79 @@
 package com.centraldoalfabeto.game.domain.controller;
 
 import com.centraldoalfabeto.game.domain.model.Educador;
-import com.centraldoalfabeto.game.domain.model.Jogador;
+import com.centraldoalfabeto.game.dto.EducatorRegistrationDTO;
 import com.centraldoalfabeto.game.dto.StudentProgressDTO;
-import com.centraldoalfabeto.game.domain.model.TotalAudioReproductions;
-import com.centraldoalfabeto.game.domain.model.TotalErrors;
-import com.centraldoalfabeto.game.repository.EducadorRepository;
-import com.centraldoalfabeto.game.repository.JogadorRepository;
-import com.centraldoalfabeto.game.repository.TotalErrorsRepository;
-import com.centraldoalfabeto.game.repository.TotalAudioReproductionsRepository;
+import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
 import com.centraldoalfabeto.game.service.EducadorService;
+import com.centraldoalfabeto.game.service.ProgressService;
 import com.centraldoalfabeto.game.security.JwtAuthenticatedUser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.List;
-import java.util.stream.Collectors;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/educators")
 public class EducadorController {
-    @Autowired
-    private EducadorService educadorService;
+
+    private final EducadorService educadorService;
+    private final ProgressService progressService;
 
     @Autowired
-    private EducadorRepository educadorRepository;
-
-    @Autowired
-    private JogadorRepository jogadorRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private TotalErrorsRepository totalErrorsRepository;
-    
-    @Autowired
-    private TotalAudioReproductionsRepository totalAudioReproductionsRepository;
+    public EducadorController(EducadorService educadorService, ProgressService progressService) {
+        this.educadorService = educadorService;
+        this.progressService = progressService;
+    }
 
     @PostMapping("/register")
-    public ResponseEntity<Void> registerEducator(@RequestBody Educador educator) {
-        if (educator.getEmail() == null || educator.getFullName() == null || educator.getSenha() == null) {
+    public ResponseEntity<UnifiedLoginResponseDTO> registerEducator(@RequestBody EducatorRegistrationDTO registrationDTO) {
+        
+        if (registrationDTO.getEmail() == null || registrationDTO.getNome() == null || registrationDTO.getSenha() == null) {
             return ResponseEntity.badRequest().build();
         }
 
-        Optional<Educador> existingEducator = educadorRepository.findByEmail(educator.getEmail());
-        if (existingEducator.isPresent()) {
+        try {
+            UnifiedLoginResponseDTO responseDTO = educadorService.registerEducator(registrationDTO);
+            return ResponseEntity.status(HttpStatus.CREATED).body(responseDTO);
+        } catch (IllegalArgumentException e) {
+            // Exemplo: Email já existe
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
         }
-        
-        String encodedPassword = passwordEncoder.encode(educator.getSenha());
-        educator.setSenha(encodedPassword);
-        
-        educadorService.save(educator);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    @PostMapping("/student-progress")
+    @GetMapping("/student-progress/{studentId}")
     public ResponseEntity<StudentProgressDTO> getStudentProgress(
-            @RequestBody Jogador student,
+            @PathVariable UUID studentId,
             @AuthenticationPrincipal JwtAuthenticatedUser authenticatedUser) {
 
         if (authenticatedUser == null || !"EDUCATOR".equalsIgnoreCase(authenticatedUser.getRole())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        if (student.getId() == null) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        Optional<Educador> optionalEducador = educadorRepository.findById(authenticatedUser.getUserId());
-        if (optionalEducador.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        Educador educator = optionalEducador.get();
-        Set<Long> allowedStudents = educator.getStudentIds();
-        if (allowedStudents == null || !allowedStudents.contains(student.getId())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-
-        Optional<Jogador> optionalJogador = jogadorRepository.findById(student.getId());
-
-        if (optionalJogador.isPresent()) {
-            Jogador jogador = optionalJogador.get();
-            StudentProgressDTO progressDTO = new StudentProgressDTO();
-            progressDTO.setCurrentPhaseIndex(jogador.getCurrentPhaseIndex());
-
-            List<TotalErrors> errors = totalErrorsRepository.findErrorsByJogadorId(jogador.getId());
-
-            Map<Integer, Integer> errorsByPhase = errors.stream()
-                .collect(Collectors.toMap(TotalErrors::getCurrentPhaseIndex, TotalErrors::getValue));
-            progressDTO.setNumberOfErrorsByPhase(errorsByPhase);
-
-            List<TotalAudioReproductions> soundRepeats = totalAudioReproductionsRepository.findSoundRepeatsByJogadorId(jogador.getId());
-
-            Map<Integer, Integer> soundRepeatsByPhase = soundRepeats.stream()
-                .collect(Collectors.toMap(TotalAudioReproductions::getCurrentPhaseIndex, TotalAudioReproductions::getValue));
-            progressDTO.setNumberOfSoundRepeatsByPhase(soundRepeatsByPhase);
-            
+        try {
+            StudentProgressDTO progressDTO = educadorService.getStudentProgress(
+                authenticatedUser.getUserId(), 
+                studentId
+            );
             return ResponseEntity.ok(progressDTO);
+            
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build(); 
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
         }
-
-        return ResponseEntity.notFound().build();
     }
 
     @PutMapping("/{id}/updateStudentIds")
     public ResponseEntity<Educador> updateStudentIds(
-            @PathVariable Long id,
-            @RequestBody Set<Long> studentIds,
+            @PathVariable UUID id,
+            @RequestBody Set<UUID> studentIds,
             @AuthenticationPrincipal JwtAuthenticatedUser authenticatedUser) {
 
         if (authenticatedUser == null
@@ -122,16 +81,12 @@ public class EducadorController {
                 || !authenticatedUser.getUserId().equals(id)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-
-        Optional<Educador> optionalEducator = educadorRepository.findById(id);
-        if (optionalEducator.isEmpty()) {
+        
+        try {
+            Educador updatedEducator = educadorService.updateStudentIds(id, studentIds);
+            return ResponseEntity.ok(updatedEducator);
+        } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
-
-        Educador educator = optionalEducator.get();
-        educator.setStudentIds(studentIds);
-
-        Educador updatedEducator = educadorService.save(educator);
-        return ResponseEntity.ok(updatedEducator);
     }
 }
