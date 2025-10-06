@@ -1,17 +1,20 @@
 package com.centraldoalfabeto.game.dto;
 
 import lombok.Data;
-import java.util.Map;
+import lombok.NoArgsConstructor;
+import java.util.UUID; 
 
 @Data
+@NoArgsConstructor
 public class StudentSummaryDTO {
-    private Long id;
+    private UUID id; 
     private String fullName;
     private Integer currentPhaseIndex;
-    private Map<Integer, Integer> numberOfErrorsByPhase;
-    private Map<Integer, Integer> numberOfSoundRepeatsByPhase;
-
-    public StudentSummaryDTO(Long id, String fullName, Integer currentPhaseIndex) {
+    
+    private String errorsDataJson; 
+    private String soundRepeatsDataJson;
+    
+    public StudentSummaryDTO(UUID id, String fullName, Integer currentPhaseIndex) {
         this.id = id;
         this.fullName = fullName;
         this.currentPhaseIndex = currentPhaseIndex;
