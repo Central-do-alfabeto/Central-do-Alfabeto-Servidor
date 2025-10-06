@@ -1,6 +1,7 @@
 package com.centraldoalfabeto.game.domain.model;
 
 import jakarta.persistence.*;
+import java.util.UUID;
 import java.util.Set;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -11,21 +12,18 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Educador {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "user_id")
+    private UUID userId; 
 
-    @Column(name = "nome")
-    private String fullName;
+    @OneToOne
+    @MapsId
+    @JoinColumn(name = "user_id")
+    private User user;
     
-    @Column(name = "email")
-    private String email;
-    
-    @Column(name = "senha")
-    private String senha;
-
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "educator_alunos",
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "educators_aluno", 
                      joinColumns = @JoinColumn(name = "educators_id"))
-    @Column(name = "players_id")
-    private Set<Long> studentIds;
+
+    @Column(name = "players_id") 
+    private Set<UUID> playerIds; 
 }
