@@ -11,8 +11,8 @@ public class StudentSummaryDTO {
     private String fullName;
     private Integer currentPhaseIndex;
     
-    private String errorsDataJson; 
-    private String soundRepeatsDataJson;
+    private Long errorsDataJson; 
+    private Long soundRepeatsDataJson;
     
     public StudentSummaryDTO(UUID id, String fullName, Integer currentPhaseIndex) {
         this.id = id;

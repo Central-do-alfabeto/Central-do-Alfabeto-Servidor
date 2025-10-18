@@ -1,16 +1,17 @@
 package com.centraldoalfabeto.game.service;
 
 import com.centraldoalfabeto.game.domain.model.Jogador;
-import com.centraldoalfabeto.game.domain.model.User;
 import com.centraldoalfabeto.game.domain.model.PlayersData;
+import com.centraldoalfabeto.game.domain.model.User;
 import com.centraldoalfabeto.game.dto.PlayerRegistrationDTO;
 import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
 import com.centraldoalfabeto.game.repository.JogadorRepository;
 import com.centraldoalfabeto.game.repository.PlayersDataRepository;
 import com.centraldoalfabeto.game.repository.UserRepository;
 import jakarta.transaction.Transactional;
-import org.springframework.security.crypto.password.PasswordEncoder;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -46,19 +47,19 @@ public class JogadorService {
         user.setNome(dto.getNome());
         user.setEmail(dto.getEmail());
         user.setSenhaHash(passwordEncoder.encode(dto.getSenha()));
+        user.setMetadados("{\"role\":\"aluno\"}");
         user = userRepository.save(user);
-        
-        Jogador jogador = new Jogador();
 
-        jogador.setUserId(user.getId()); 
+        Jogador jogador = new Jogador();
         jogador.setUser(user);
+        jogador.setCurrentPhaseIndex(0);
         jogador = jogadorRepository.save(jogador);
-        
+
         PlayersData initialData = new PlayersData();
-        initialData.setPlayersId(user.getId());
+        initialData.setPlayer(jogador);
         initialData.setPhaseIndex(0);
-        initialData.setAudiosTotais("{}");
-        initialData.setErrosTotais("{}");
+    initialData.setAudiosTotais(0L);
+    initialData.setErrosTotais(0L);
         playersDataRepository.save(initialData);
 
         String token = jwtService.generateToken(user.getId(), "STUDENT", user.getEmail());

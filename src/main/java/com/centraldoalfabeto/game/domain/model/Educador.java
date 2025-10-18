@@ -24,9 +24,9 @@ public class Educador {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
         name = "educators_aluno", 
-        joinColumns = @JoinColumn(name = "educator_id")
+        joinColumns = @JoinColumn(name = "educators_id")
     )
-    
-    @Column(name = "student_id") 
+
+    @Column(name = "players_id") 
     private Set<UUID> studentIds;
 }

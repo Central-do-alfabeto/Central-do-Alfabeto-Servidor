@@ -15,6 +15,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,12 +28,14 @@ import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
+    private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     private final UserRepository userRepository;
     private final JogadorRepository jogadorRepository;
     private final EducadorRepository educadorRepository;
     private final PlayersDataRepository playersDataRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final ObjectMapper objectMapper;
 
     @Autowired
     public AuthService(
@@ -37,7 +44,8 @@ public class AuthService {
         EducadorRepository educadorRepository,
         PlayersDataRepository playersDataRepository,
         PasswordEncoder passwordEncoder,
-        JwtService jwtService
+        JwtService jwtService,
+        ObjectMapper objectMapper
     ) {
         this.userRepository = userRepository;
         this.jogadorRepository = jogadorRepository;
@@ -45,6 +53,7 @@ public class AuthService {
         this.playersDataRepository = playersDataRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.objectMapper = objectMapper;
     }
 
     public UnifiedLoginResponseDTO authenticate(LoginRequestDTO loginData) throws SecurityException {
@@ -56,17 +65,24 @@ public class AuthService {
         }
 
         UUID userId = user.getId();
-        boolean isStudent = loginData.getIsStudent() == null || Boolean.TRUE.equals(loginData.getIsStudent());
+        String metadataRole = resolveRoleFromMetadata(user.getMetadados());
+        Boolean requestedStudent = loginData.getIsStudent();
+        boolean isStudent = determineIsStudent(metadataRole, requestedStudent, userId);
+
+        UnifiedLoginResponseDTO response;
 
         if (isStudent && jogadorRepository.existsById(userId)) {
-            return buildPlayerResponse(user);
-        }
-        
-        if (!isStudent && educadorRepository.existsById(userId)) {
-            return buildEducatorResponse(user);
+            response = buildPlayerResponse(user);
+        } else if (!isStudent && educadorRepository.existsById(userId)) {
+            response = buildEducatorResponse(user);
         }
 
-        throw new SecurityException("Papel solicitado incorreto para o usuário.");
+        else {
+            throw new SecurityException("Papel solicitado incorreto para o usuário.");
+        }
+
+        response.setRole(metadataRole != null ? metadataRole : (isStudent ? "STUDENT" : "EDUCATOR"));
+        return response;
     }
     
     private UnifiedLoginResponseDTO buildPlayerResponse(User user) {
@@ -80,12 +96,14 @@ public class AuthService {
 
         String token = jwtService.generateToken(user.getId(), "STUDENT", user.getEmail());
         
-        return new UnifiedLoginResponseDTO(
+        UnifiedLoginResponseDTO dto = new UnifiedLoginResponseDTO(
             user.getId(),
             true,
             playerData.getPhaseIndex(),
             token
         );
+        dto.setRole("STUDENT");
+        return dto;
     }
 
     private UnifiedLoginResponseDTO buildEducatorResponse(User user) {
@@ -119,11 +137,56 @@ public class AuthService {
         
         String token = jwtService.generateToken(user.getId(), "EDUCATOR", user.getEmail());
 
-        return new UnifiedLoginResponseDTO(
+        UnifiedLoginResponseDTO dto = new UnifiedLoginResponseDTO(
             user.getId(),
             false,
             studentSummaries,
             token
         );
+        dto.setRole("EDUCATOR");
+        return dto;
+    }
+
+    private boolean determineIsStudent(String metadataRole, Boolean requestedStudent, UUID userId) {
+        if (metadataRole != null) {
+            return metadataRole.equalsIgnoreCase("aluno") || metadataRole.equalsIgnoreCase("student") || metadataRole.equalsIgnoreCase("STUDENT");
+        }
+
+        if (requestedStudent != null) {
+            return requestedStudent;
+        }
+
+        // fallback to database relationships if metadata missing
+        if (jogadorRepository.existsById(userId)) {
+            return true;
+        }
+
+        if (educadorRepository.existsById(userId)) {
+            return false;
+        }
+
+        // default to student if data inconclusive
+        return true;
+    }
+
+    private String resolveRoleFromMetadata(String rawMetadata) {
+        if (rawMetadata == null || rawMetadata.isBlank()) {
+            return null;
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(rawMetadata);
+            JsonNode roleNode = root.path("role");
+            if (roleNode.isTextual()) {
+                String roleValue = roleNode.asText();
+                if (roleValue != null && !roleValue.isBlank()) {
+                    return roleValue;
+                }
+            }
+        } catch (Exception ex) {
+            logger.warn("Não foi possível interpretar metadados do usuário:", ex);
+        }
+
+        return null;
     }
 }

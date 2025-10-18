@@ -6,7 +6,7 @@ import lombok.Data;
 public class StudentProgressDTO {
     private Integer currentPhaseIndex;
     
-    private String errorsDataJson; 
+    private Long errorsDataJson; 
     
-    private String soundRepeatsDataJson;
+    private Long soundRepeatsDataJson;
 }

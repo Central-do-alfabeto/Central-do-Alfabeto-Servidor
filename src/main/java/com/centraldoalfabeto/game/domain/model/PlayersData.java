@@ -19,12 +19,12 @@ public class PlayersData {
     @JoinColumn(name = "players_id")
     private Jogador player;
     
-    @Column(name = "erros_totais", columnDefinition = "jsonb") 
-    private String errosTotais;
+    @Column(name = "erros_totais") 
+    private Long errosTotais = 0L;
     
-    @Column(name = "audios_totais", columnDefinition = "jsonb") 
-    private String audiosTotais;
+    @Column(name = "reproducoes_totais") 
+    private Long audiosTotais = 0L;
 
     @Column(name = "phase_index")
-    private Integer phaseIndex;
+    private Integer phaseIndex = 0;
 }
