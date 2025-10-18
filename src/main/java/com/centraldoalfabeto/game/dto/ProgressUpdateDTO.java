@@ -6,7 +6,7 @@ import lombok.Data;
 public class ProgressUpdateDTO {
     private Integer currentPhaseIndex;
     
-    private String errorsData; 
+    private Long errorsData; 
     
-    private String soundRepeatsData;
+    private Long soundRepeatsData;
 }

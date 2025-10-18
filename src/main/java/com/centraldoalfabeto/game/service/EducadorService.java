@@ -57,12 +57,11 @@ public class EducadorService {
         user.setNome(dto.getNome());
         user.setEmail(dto.getEmail());
         user.setSenhaHash(passwordEncoder.encode(dto.getSenha()));
+        user.setMetadados("{\"role\":\"educador\"}");
         user = userRepository.save(user);
-        
+
         Educador educator = new Educador();
-        educator.setUserId(user.getId()); 
         educator.setUser(user);
-        
         educator = educadorRepository.save(educator);
 
         String token = jwtService.generateToken(user.getId(), "EDUCATOR", user.getEmail());

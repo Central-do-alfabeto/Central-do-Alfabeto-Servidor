@@ -29,7 +29,9 @@ public class ProgressService {
         PlayersData playerData = existingData.orElseGet(() -> {
             PlayersData newPlayersData = new PlayersData();
             newPlayersData.setPlayersId(playerId);
-          
+            newPlayersData.setErrosTotais(0L);
+            newPlayersData.setAudiosTotais(0L);
+            newPlayersData.setPhaseIndex(0);
             return newPlayersData;
         });
         

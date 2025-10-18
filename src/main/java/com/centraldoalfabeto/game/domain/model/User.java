@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import java.util.UUID;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "users")
@@ -24,6 +26,7 @@ public class User {
     private String senhaHash;
     
     @Column(name = "metadados", columnDefinition = "jsonb") 
+    @JdbcTypeCode(SqlTypes.JSON)
     private String metadados;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
