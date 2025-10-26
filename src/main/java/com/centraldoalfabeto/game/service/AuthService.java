@@ -1,16 +1,16 @@
 package com.centraldoalfabeto.game.service;
 
-import com.centraldoalfabeto.game.domain.model.Educador;
 import com.centraldoalfabeto.game.domain.model.Jogador;
 import com.centraldoalfabeto.game.domain.model.User;
 import com.centraldoalfabeto.game.domain.model.PlayersData;
+import com.centraldoalfabeto.game.domain.model.EducatorStudentLink;
 import com.centraldoalfabeto.game.dto.LoginRequestDTO;
 import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
 import com.centraldoalfabeto.game.dto.StudentSummaryDTO;
 import com.centraldoalfabeto.game.repository.UserRepository;
-import com.centraldoalfabeto.game.repository.EducadorRepository;
 import com.centraldoalfabeto.game.repository.JogadorRepository;
 import com.centraldoalfabeto.game.repository.PlayersDataRepository;
+import com.centraldoalfabeto.game.repository.EducatorStudentLinkRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -31,7 +31,7 @@ public class AuthService {
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     private final UserRepository userRepository;
     private final JogadorRepository jogadorRepository;
-    private final EducadorRepository educadorRepository;
+    private final EducatorStudentLinkRepository educatorStudentLinkRepository;
     private final PlayersDataRepository playersDataRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -41,7 +41,7 @@ public class AuthService {
     public AuthService(
         UserRepository userRepository,
         JogadorRepository jogadorRepository,
-        EducadorRepository educadorRepository,
+        EducatorStudentLinkRepository educatorStudentLinkRepository,
         PlayersDataRepository playersDataRepository,
         PasswordEncoder passwordEncoder,
         JwtService jwtService,
@@ -49,7 +49,7 @@ public class AuthService {
     ) {
         this.userRepository = userRepository;
         this.jogadorRepository = jogadorRepository;
-        this.educadorRepository = educadorRepository;
+        this.educatorStudentLinkRepository = educatorStudentLinkRepository;
         this.playersDataRepository = playersDataRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -73,7 +73,7 @@ public class AuthService {
 
         if (isStudent && jogadorRepository.existsById(userId)) {
             response = buildPlayerResponse(user);
-        } else if (!isStudent && educadorRepository.existsById(userId)) {
+        } else if (!isStudent) {
             response = buildEducatorResponse(user);
         }
 
@@ -107,34 +107,35 @@ public class AuthService {
     }
 
     private UnifiedLoginResponseDTO buildEducatorResponse(User user) {
-        Educador educator = educadorRepository.findById(user.getId())
-            .orElseThrow(() -> new IllegalStateException("Educador não encontrado após autenticação."));
+        List<EducatorStudentLink> links = educatorStudentLinkRepository.findByEducatorId(user.getId());
+
+        Set<UUID> studentIds = links.stream()
+            .map(EducatorStudentLink::getStudentId)
+            .collect(Collectors.toSet());
 
         List<StudentSummaryDTO> studentSummaries = List.of();
-        
-        Set<UUID> studentIds = educator.getStudentIds();
-        
-        if (studentIds != null && !studentIds.isEmpty()) {
+
+        if (!studentIds.isEmpty()) {
             List<PlayersData> allStudentsData = playersDataRepository.findAllById(studentIds);
-            
+
             studentSummaries = allStudentsData.stream()
                 .map(data -> {
                     Optional<Jogador> optionalJogador = jogadorRepository.findById(data.getPlayersId());
                     String fullName = optionalJogador.map(Jogador::getUser).map(User::getNome).orElse("Aluno Desconhecido");
-                    
+
                     StudentSummaryDTO summary = new StudentSummaryDTO(
                         data.getPlayersId(),
                         fullName,
                         data.getPhaseIndex()
                     );
-                
+
                     summary.setErrorsDataJson(data.getErrosTotais());
                     summary.setSoundRepeatsDataJson(data.getAudiosTotais());
                     return summary;
                 })
                 .collect(Collectors.toList());
         }
-        
+
         String token = jwtService.generateToken(user.getId(), "EDUCATOR", user.getEmail());
 
         UnifiedLoginResponseDTO dto = new UnifiedLoginResponseDTO(
@@ -149,7 +150,15 @@ public class AuthService {
 
     private boolean determineIsStudent(String metadataRole, Boolean requestedStudent, UUID userId) {
         if (metadataRole != null) {
-            return metadataRole.equalsIgnoreCase("aluno") || metadataRole.equalsIgnoreCase("student") || metadataRole.equalsIgnoreCase("STUDENT");
+            if (metadataRole.equalsIgnoreCase("aluno")
+                || metadataRole.equalsIgnoreCase("student")
+                || metadataRole.equalsIgnoreCase("player")) {
+                return true;
+            }
+            if (metadataRole.equalsIgnoreCase("educador")
+                || metadataRole.equalsIgnoreCase("educator")) {
+                return false;
+            }
         }
 
         if (requestedStudent != null) {
@@ -161,7 +170,7 @@ public class AuthService {
             return true;
         }
 
-        if (educadorRepository.existsById(userId)) {
+        if (educatorStudentLinkRepository.existsByEducatorId(userId)) {
             return false;
         }
 

@@ -47,7 +47,7 @@ public class JogadorService {
         user.setNome(dto.getNome());
         user.setEmail(dto.getEmail());
         user.setSenhaHash(passwordEncoder.encode(dto.getSenha()));
-        user.setMetadados("{\"role\":\"aluno\"}");
+        user.setMetadados("{\"role\":\"player\"}");
         user = userRepository.save(user);
 
         Jogador jogador = new Jogador();
@@ -58,17 +58,19 @@ public class JogadorService {
         PlayersData initialData = new PlayersData();
         initialData.setPlayer(jogador);
         initialData.setPhaseIndex(0);
-    initialData.setAudiosTotais(0L);
-    initialData.setErrosTotais(0L);
+        initialData.setAudiosTotais(0L);
+        initialData.setErrosTotais(0L);
         playersDataRepository.save(initialData);
 
         String token = jwtService.generateToken(user.getId(), "STUDENT", user.getEmail());
         
-        return new UnifiedLoginResponseDTO(
-            user.getId(), 
+        UnifiedLoginResponseDTO response = new UnifiedLoginResponseDTO(
+            user.getId(),
             true,
             initialData.getPhaseIndex(),
             token
         );
+        response.setRole("STUDENT");
+        return response;
     }
 }

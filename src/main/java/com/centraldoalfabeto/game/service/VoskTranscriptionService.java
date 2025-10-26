@@ -62,7 +62,7 @@ public class VoskTranscriptionService {
                 recognizer.acceptWaveForm(buffer, bytesRead);
             }
             
-            String finalResult = recognizer.getResult(); 
+            String finalResult = recognizer.getFinalResult(); // Corrigido: getFinalResult() em vez de getResult()
 
             int textStart = finalResult.indexOf("\"text\" : \"");
             if (textStart != -1) {
