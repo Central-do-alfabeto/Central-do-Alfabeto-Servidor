@@ -1,6 +1,5 @@
 package com.centraldoalfabeto.game.domain.controller;
 
-import com.centraldoalfabeto.game.domain.model.Jogador;
 import com.centraldoalfabeto.game.dto.PlayerRegistrationDTO;
 import com.centraldoalfabeto.game.dto.ProgressUpdateDTO;
 import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;

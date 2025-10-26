@@ -5,7 +5,6 @@ import com.centraldoalfabeto.game.dto.EducatorRegistrationDTO;
 import com.centraldoalfabeto.game.dto.StudentProgressDTO;
 import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
 import com.centraldoalfabeto.game.service.EducadorService;
-import com.centraldoalfabeto.game.service.ProgressService;
 import com.centraldoalfabeto.game.security.JwtAuthenticatedUser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,14 +18,11 @@ import java.util.Set;
 @RestController
 @RequestMapping("/educators")
 public class EducadorController {
-
     private final EducadorService educadorService;
-    private final ProgressService progressService;
 
     @Autowired
-    public EducadorController(EducadorService educadorService, ProgressService progressService) {
+    public EducadorController(EducadorService educadorService) {
         this.educadorService = educadorService;
-        this.progressService = progressService;
     }
 
     @PostMapping("/register")
