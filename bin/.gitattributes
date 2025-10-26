@@ -1,0 +1,4 @@
+/mvnw text eol=lf
+*.cmd text eol=crlf
+*.fst filter=lfs diff=lfs merge=lfs -text
+*.carpa filter=lfs diff=lfs merge=lfs -text
