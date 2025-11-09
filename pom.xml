@@ -35,8 +35,12 @@
             <url>https://alphacephei.com/maven/</url> 
         </repository>
         <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
+            <id>sonatype-oss-snapshots</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </repository>
+        <repository>
+            <id>sonatype-oss-releases</id>
+            <url>https://oss.sonatype.org/content/repositories/releases</url>
         </repository>
     </repositories>
 	<dependencies>
@@ -47,7 +51,7 @@
 	    </dependency>
 		<dependency>
 	        <groupId>com.alphacephei</groupId>
-	        <artifactId>vosk-api</artifactId>
+	        <artifactId>vosk</artifactId>
 	        <version>0.3.38</version>
 		</dependency>
 		<dependency>
