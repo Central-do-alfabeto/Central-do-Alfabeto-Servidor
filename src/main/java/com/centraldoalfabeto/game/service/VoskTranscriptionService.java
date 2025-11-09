@@ -2,8 +2,7 @@ package com.centraldoalfabeto.game.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ResourceLoader;
+import org.springframework.core.io.ClassPathResource;
 
 import org.vosk.Model;
 import org.vosk.LogLevel;
@@ -26,26 +25,27 @@ public class VoskTranscriptionService {
     
     private static final String MODEL_FOLDER_NAME = "vosk-model"; 
 
-    @Autowired
-    private ResourceLoader resourceLoader;
-
     @PostConstruct
     public void init() {
         try {
             LibVosk.setLogLevel(LogLevel.DEBUG);
             System.out.println("Tentando carregar modelo Vosk...");
 
-            File modelFile = resourceLoader.getResource("classpath:" + MODEL_FOLDER_NAME).getFile();
+            ClassPathResource resource = new ClassPathResource(MODEL_FOLDER_NAME);
+            
+            File modelFile = resource.getFile();
             String path = modelFile.getAbsolutePath();
 
             System.out.println("Tentando carregar modelo Vosk de: " + path);
             
             model = new Model(path);
-            System.out.println("✅ Modelo Vosk carregado com sucesso!");
+            System.out.println("✅ Modelo Vosk carregado com sucesso!");       
         } catch (Exception e) {
-            System.err.println("❌ FALHA CRÍTICA ao carregar o modelo Vosk. Verifique se a pasta 'vosk-model' existe em resources.");
-            System.err.println("DICA: Se for rodar em JAR/Docker, o modelo precisa ser extraído para o disco antes desta inicialização.");
+            System.err.println("❌ FALHA CRÍTICA ao carregar o modelo Vosk. Verifique:");
+            System.err.println("1. Se a pasta 'vosk-model' está diretamente em src/main/resources.");
+            System.err.println("2. Se o projeto foi compilado (Build) corretamente para que o modelo esteja na pasta 'target/classes'.");
             e.printStackTrace();
+            model = null;
         }
     }
 
