@@ -2,19 +2,15 @@ package com.centraldoalfabeto.game.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.core.io.ClassPathResource;
 
 import org.vosk.Model;
-import org.vosk.LogLevel;
 import org.vosk.Recognizer;
-import org.vosk.LibVosk;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
 import java.io.BufferedInputStream;
 import java.io.InputStream;
-import java.io.File;
 
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
@@ -22,30 +18,24 @@ import javax.sound.sampled.AudioSystem;
 @Service
 public class VoskTranscriptionService {
     private Model model;
-    
-    private static final String MODEL_FOLDER_NAME = "vosk-model"; 
 
     @PostConstruct
     public void init() {
         try {
-            LibVosk.setLogLevel(LogLevel.DEBUG);
+            org.vosk.LibVosk.setLogLevel(org.vosk.LogLevel.DEBUG);
             System.out.println("Tentando carregar modelo Vosk...");
 
-            ClassPathResource resource = new ClassPathResource(MODEL_FOLDER_NAME);
+            String absoluteVoskPath = "C:/Users/Brian/Documents/workspace-spring-tools-for-eclipse-4.31.0.RELEASE/Central-do-Alfabeto-Servidor/src/main/resources/vosk-model"; 
             
-            File modelFile = resource.getFile();
-            String path = modelFile.getAbsolutePath();
-
-            System.out.println("Tentando carregar modelo Vosk de: " + path);
+            System.out.println("Tentando carregar modelo Vosk de: " + absoluteVoskPath);
             
-            model = new Model(path);
-            System.out.println("✅ Modelo Vosk carregado com sucesso!");       
+            model = new Model(absoluteVoskPath);
+            System.out.println("✅ Modelo Vosk carregado com sucesso!");
+            
         } catch (Exception e) {
-            System.err.println("❌ FALHA CRÍTICA ao carregar o modelo Vosk. Verifique:");
-            System.err.println("1. Se a pasta 'vosk-model' está diretamente em src/main/resources.");
-            System.err.println("2. Se o projeto foi compilado (Build) corretamente para que o modelo esteja na pasta 'target/classes'.");
+            System.err.println("❌ FALHA CRÍTICA ao carregar o modelo Vosk. (Verifique o caminho fixo!)");
             e.printStackTrace();
-            model = null;
+            model = null; 
         }
     }
 
