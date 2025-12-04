@@ -1,15 +1,12 @@
 package com.centraldoalfabeto.game.service;
 
-import com.centraldoalfabeto.game.domain.model.Jogador;
 import com.centraldoalfabeto.game.domain.model.User;
-import com.centraldoalfabeto.game.domain.model.PlayersData;
 import com.centraldoalfabeto.game.domain.model.EducatorStudentLink;
 import com.centraldoalfabeto.game.dto.LoginRequestDTO;
 import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
 import com.centraldoalfabeto.game.dto.StudentSummaryDTO;
 import com.centraldoalfabeto.game.repository.UserRepository;
-import com.centraldoalfabeto.game.repository.JogadorRepository;
-import com.centraldoalfabeto.game.repository.PlayersDataRepository;
+import com.centraldoalfabeto.game.repository.PlayerDataRepository;
 import com.centraldoalfabeto.game.repository.EducatorStudentLinkRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,18 +18,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     private final UserRepository userRepository;
-    private final JogadorRepository jogadorRepository;
     private final EducatorStudentLinkRepository educatorStudentLinkRepository;
-    private final PlayersDataRepository playersDataRepository;
+    private final PlayerDataRepository playerDataRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final ObjectMapper objectMapper;
@@ -40,17 +37,15 @@ public class AuthService {
     @Autowired
     public AuthService(
         UserRepository userRepository,
-        JogadorRepository jogadorRepository,
         EducatorStudentLinkRepository educatorStudentLinkRepository,
-        PlayersDataRepository playersDataRepository,
+        PlayerDataRepository playerDataRepository,
         PasswordEncoder passwordEncoder,
         JwtService jwtService,
         ObjectMapper objectMapper
     ) {
         this.userRepository = userRepository;
-        this.jogadorRepository = jogadorRepository;
         this.educatorStudentLinkRepository = educatorStudentLinkRepository;
-        this.playersDataRepository = playersDataRepository;
+        this.playerDataRepository = playerDataRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.objectMapper = objectMapper;
@@ -71,7 +66,7 @@ public class AuthService {
 
         UnifiedLoginResponseDTO response;
 
-        if (isStudent && jogadorRepository.existsById(userId)) {
+        if (isStudent) {
             response = buildPlayerResponse(user);
         } else if (!isStudent) {
             response = buildEducatorResponse(user);
@@ -86,23 +81,19 @@ public class AuthService {
     }
     
     private UnifiedLoginResponseDTO buildPlayerResponse(User user) {
-        Optional<PlayersData> optionalData = playersDataRepository.findById(user.getId());
-        
-        PlayersData playerData = optionalData.orElseGet(() -> {
-            PlayersData data = new PlayersData();
-            data.setPhaseIndex(0);
-            return data;
-        });
+        int nextPhaseIndex = resolveNextPhaseIndex(user.getId());
 
         String token = jwtService.generateToken(user.getId(), "STUDENT", user.getEmail());
-        
+
         UnifiedLoginResponseDTO dto = new UnifiedLoginResponseDTO(
             user.getId(),
             true,
-            playerData.getPhaseIndex(),
+            nextPhaseIndex,
             token
         );
         dto.setRole("STUDENT");
+        dto.setUserName(user.getNome());
+        dto.setEmail(user.getEmail());
         return dto;
     }
 
@@ -116,21 +107,26 @@ public class AuthService {
         List<StudentSummaryDTO> studentSummaries = List.of();
 
         if (!studentIds.isEmpty()) {
-            List<PlayersData> allStudentsData = playersDataRepository.findAllById(studentIds);
+            Map<UUID, User> usersById = userRepository.findAllById(studentIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
 
-            studentSummaries = allStudentsData.stream()
-                .map(data -> {
-                    Optional<Jogador> optionalJogador = jogadorRepository.findById(data.getPlayersId());
-                    String fullName = optionalJogador.map(Jogador::getUser).map(User::getNome).orElse("Aluno Desconhecido");
+            studentSummaries = studentIds.stream()
+                .map(studentId -> {
+                    User studentUser = usersById.get(studentId);
+                    String fullName = studentUser != null && studentUser.getNome() != null
+                        ? studentUser.getNome()
+                        : "Aluno Desconhecido";
+
+                    int currentPhase = resolveNextPhaseIndex(studentId);
 
                     StudentSummaryDTO summary = new StudentSummaryDTO(
-                        data.getPlayersId(),
+                        studentId,
                         fullName,
-                        data.getPhaseIndex()
+                        currentPhase
                     );
 
-                    summary.setErrorsDataJson(data.getErrosTotais());
-                    summary.setSoundRepeatsDataJson(data.getAudiosTotais());
+                    summary.setErrorsDataJson(0L);
+                    summary.setSoundRepeatsDataJson(0L);
                     return summary;
                 })
                 .collect(Collectors.toList());
@@ -145,6 +141,8 @@ public class AuthService {
             token
         );
         dto.setRole("EDUCATOR");
+        dto.setUserName(user.getNome());
+        dto.setEmail(user.getEmail());
         return dto;
     }
 
@@ -165,8 +163,7 @@ public class AuthService {
             return requestedStudent;
         }
 
-        // fallback to database relationships if metadata missing
-        if (jogadorRepository.existsById(userId)) {
+        if (playerDataRepository.existsByPlayerId(userId)) {
             return true;
         }
 
@@ -197,5 +194,11 @@ public class AuthService {
         }
 
         return null;
+    }
+
+    private int resolveNextPhaseIndex(UUID playerId) {
+        return playerDataRepository.findLatestPhaseIndexByPlayerId(playerId)
+            .map(latest -> latest + 1)
+            .orElse(0);
     }
 }

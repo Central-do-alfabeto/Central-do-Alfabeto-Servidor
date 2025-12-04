@@ -1,17 +1,16 @@
 package com.centraldoalfabeto.game.service;
 
-import com.centraldoalfabeto.game.domain.model.User;
-import com.centraldoalfabeto.game.domain.model.PlayersData;
-import com.centraldoalfabeto.game.domain.model.Jogador;
 import com.centraldoalfabeto.game.domain.model.EducatorStudentLink;
+import com.centraldoalfabeto.game.domain.model.PlayerData;
+import com.centraldoalfabeto.game.domain.model.User;
 import com.centraldoalfabeto.game.dto.AddStudentRequestDTO;
 import com.centraldoalfabeto.game.dto.EducatorRegistrationDTO;
+import com.centraldoalfabeto.game.dto.PlayerDataSnapshotDTO;
 import com.centraldoalfabeto.game.dto.StudentProgressDTO;
 import com.centraldoalfabeto.game.dto.StudentSummaryDTO;
 import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
 import com.centraldoalfabeto.game.repository.UserRepository;
-import com.centraldoalfabeto.game.repository.PlayersDataRepository;
-import com.centraldoalfabeto.game.repository.JogadorRepository;
+import com.centraldoalfabeto.game.repository.PlayerDataRepository;
 import com.centraldoalfabeto.game.repository.EducatorStudentLinkRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,8 +31,7 @@ import java.util.stream.Collectors;
 public class EducadorService {
     private final EducatorStudentLinkRepository educatorStudentLinkRepository;
     private final UserRepository userRepository;
-    private final PlayersDataRepository playersDataRepository;
-    private final JogadorRepository jogadorRepository;
+    private final PlayerDataRepository playerDataRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
@@ -41,15 +39,13 @@ public class EducadorService {
     public EducadorService(
         EducatorStudentLinkRepository educatorStudentLinkRepository,
         UserRepository userRepository,
-        PlayersDataRepository playersDataRepository,
-        JogadorRepository jogadorRepository,
+        PlayerDataRepository playerDataRepository,
         PasswordEncoder passwordEncoder,
         JwtService jwtService
     ) {
         this.educatorStudentLinkRepository = educatorStudentLinkRepository;
         this.userRepository = userRepository;
-        this.playersDataRepository = playersDataRepository;
-        this.jogadorRepository = jogadorRepository;
+        this.playerDataRepository = playerDataRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
     }
@@ -76,6 +72,8 @@ public class EducadorService {
             token
         );
         response.setRole("EDUCATOR");
+        response.setUserName(user.getNome());
+        response.setEmail(user.getEmail());
         return response;
     }
 
@@ -112,7 +110,7 @@ public class EducadorService {
             throw new IllegalArgumentException("Nome do aluno não confere com o cadastro.");
         }
 
-        if (!jogadorRepository.existsById(studentUser.getId())) {
+        if (!isStudentUser(studentUser)) {
             throw new IllegalArgumentException("O usuário informado não está cadastrado como aluno.");
         }
 
@@ -120,12 +118,8 @@ public class EducadorService {
             throw new IllegalStateException("Aluno já vinculado a este educador.");
         }
 
-        PlayersData data = playersDataRepository.findById(studentUser.getId())
-            .orElseThrow(() -> new IllegalStateException("Dados do aluno não encontrados."));
-
         educatorStudentLinkRepository.save(new EducatorStudentLink(educatorId, studentUser.getId()));
-
-        return buildStudentSummary(studentUser, data);
+        return buildStudentSummary(studentUser);
     }
     
     public StudentProgressDTO getStudentProgress(UUID educatorId, UUID studentId) throws SecurityException, NoSuchElementException {
@@ -133,14 +127,41 @@ public class EducadorService {
             throw new SecurityException("Acesso negado. O aluno não está associado a este educador.");
         }
         
-        PlayersData playerData = playersDataRepository.findById(studentId)
-            .orElseThrow(() -> new NoSuchElementException("Dados do aluno não encontrados."));
-        
+        User studentUser = userRepository.findById(studentId)
+            .orElseThrow(() -> new NoSuchElementException("Aluno não encontrado."));
+
+        List<PlayerData> playerSnapshots = playerDataRepository.findByPlayerIdOrderByPhaseIndexAsc(studentId);
+
+        List<PlayerDataSnapshotDTO> snapshotDTOs = playerSnapshots.stream()
+            .map(snapshot -> new PlayerDataSnapshotDTO(
+                snapshot.getPhaseIndex(),
+                snapshot.getErrosTotais() != null ? snapshot.getErrosTotais() : 0L,
+                snapshot.getReproducoesTotais() != null ? snapshot.getReproducoesTotais() : 0L
+            ))
+            .collect(Collectors.toList());
+
+        long totalErrors = snapshotDTOs.stream()
+            .mapToLong(PlayerDataSnapshotDTO::getTotalErrors)
+            .sum();
+
+        long totalRepeats = snapshotDTOs.stream()
+            .mapToLong(PlayerDataSnapshotDTO::getTotalAudioReproductions)
+            .sum();
+
+        Integer lastCompletedPhase = snapshotDTOs.isEmpty()
+            ? null
+            : snapshotDTOs.get(snapshotDTOs.size() - 1).getPhaseIndex();
+
         StudentProgressDTO dto = new StudentProgressDTO();
-        dto.setCurrentPhaseIndex(playerData.getPhaseIndex());
-        dto.setErrorsDataJson(playerData.getErrosTotais());
-        dto.setSoundRepeatsDataJson(playerData.getAudiosTotais());
-        
+        dto.setStudentId(studentId);
+        dto.setStudentName(studentUser.getNome());
+        dto.setStudentEmail(studentUser.getEmail());
+        dto.setCurrentPhaseIndex(resolveNextPhaseIndex(studentId));
+        dto.setLastCompletedPhaseIndex(lastCompletedPhase);
+        dto.setErrorsDataJson(totalErrors);
+        dto.setSoundRepeatsDataJson(totalRepeats);
+        dto.setSnapshots(snapshotDTOs);
+
         return dto;
     }
     
@@ -149,15 +170,16 @@ public class EducadorService {
         getEducatorOrThrow(educatorId);
 
         if (studentIds != null && !studentIds.isEmpty()) {
-            Set<UUID> existingPlayerIds = jogadorRepository.findAllById(studentIds).stream()
-                .map(Jogador::getUserId)
+            Set<UUID> validIds = userRepository.findAllById(studentIds).stream()
+                .filter(this::isStudentUser)
+                .map(User::getId)
                 .collect(Collectors.toSet());
-            
-            if (existingPlayerIds.size() != studentIds.size()) {
+
+            if (validIds.size() != studentIds.size()) {
                 Set<UUID> invalidIds = studentIds.stream()
-                    .filter(id -> !existingPlayerIds.contains(id))
+                    .filter(id -> !validIds.contains(id))
                     .collect(Collectors.toSet());
-                
+
                 throw new IllegalArgumentException("Um ou mais IDs de aluno são inválidos ou não encontrados: " + invalidIds);
             }
         }
@@ -189,41 +211,55 @@ public class EducadorService {
 
         Map<UUID, User> usersById = userRepository.findAllById(studentIds).stream()
             .collect(Collectors.toMap(User::getId, Function.identity()));
-
-        Map<UUID, PlayersData> dataById = playersDataRepository.findAllById(studentIds).stream()
-            .collect(Collectors.toMap(PlayersData::getPlayersId, Function.identity()));
-
         List<StudentSummaryDTO> summaries = new ArrayList<>();
 
         for (UUID studentId : studentIds) {
-            PlayersData data = dataById.get(studentId);
-            if (data == null) {
-                continue;
-            }
             User user = usersById.get(studentId);
-            summaries.add(buildStudentSummary(user, data));
+            summaries.add(buildStudentSummary(user));
         }
 
         return summaries;
     }
 
-    private StudentSummaryDTO buildStudentSummary(User studentUser, PlayersData data) {
-        UUID studentId = data.getPlayersId();
-        String fullName = studentUser != null ? studentUser.getNome() : null;
-
-        if ((fullName == null || fullName.isBlank()) && data.getPlayer() != null && data.getPlayer().getUser() != null) {
-            fullName = data.getPlayer().getUser().getNome();
+    private StudentSummaryDTO buildStudentSummary(User studentUser) {
+        if (studentUser == null) {
+            throw new IllegalArgumentException("Aluno não encontrado.");
         }
 
+        String fullName = studentUser.getNome();
         if (fullName == null || fullName.isBlank()) {
             fullName = "Aluno";
         }
 
-        Integer phaseIndex = data.getPhaseIndex() != null ? data.getPhaseIndex() : 0;
+        int nextPhase = resolveNextPhaseIndex(studentUser.getId());
 
-        StudentSummaryDTO summary = new StudentSummaryDTO(studentId, fullName, phaseIndex);
-        summary.setErrorsDataJson(data.getErrosTotais() != null ? data.getErrosTotais() : 0L);
-        summary.setSoundRepeatsDataJson(data.getAudiosTotais() != null ? data.getAudiosTotais() : 0L);
+        StudentSummaryDTO summary = new StudentSummaryDTO(studentUser.getId(), fullName, nextPhase);
+        summary.setErrorsDataJson(0L);
+        summary.setSoundRepeatsDataJson(0L);
         return summary;
+    }
+
+    private boolean isStudentUser(User user) {
+        if (user == null) {
+            return false;
+        }
+
+        String metadata = user.getMetadados();
+        if (metadata == null) {
+            return playerDataRepository.existsByPlayerId(user.getId());
+        }
+
+        String normalized = metadata.toLowerCase();
+        if (normalized.contains("student") || normalized.contains("player") || normalized.contains("aluno")) {
+            return true;
+        }
+
+        return playerDataRepository.existsByPlayerId(user.getId());
+    }
+
+    private int resolveNextPhaseIndex(UUID playerId) {
+        return playerDataRepository.findLatestPhaseIndexByPlayerId(playerId)
+            .map(latest -> latest + 1)
+            .orElse(0);
     }
 }
