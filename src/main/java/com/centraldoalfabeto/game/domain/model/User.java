@@ -28,7 +28,4 @@ public class User {
     @Column(name = "metadados", columnDefinition = "jsonb") 
     @JdbcTypeCode(SqlTypes.JSON)
     private String metadados;
-
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private Jogador jogador;
 }

@@ -19,6 +19,8 @@ public class UnifiedLoginResponseDTO {
     private List<StudentSummaryDTO> studentSummaries;
     private String token;
     private String role;
+    private String userName;
+    private String email;
 
     public UnifiedLoginResponseDTO(UUID userId, boolean isStudent, Integer currentPhaseIndex) {
         this(userId, isStudent, currentPhaseIndex, null);

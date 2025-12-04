@@ -51,7 +51,7 @@ public class JogadorController {
         }
     }
 
-    @PutMapping("/{id}/updateProgress")
+    @PostMapping("/{id}/progress")
     public ResponseEntity<Void> updateProgress(
             @PathVariable UUID id, 
             @RequestBody ProgressUpdateDTO progressData,
@@ -66,8 +66,11 @@ public class JogadorController {
         logger.info("Dados recebidos para atualização para player {}: {}", id, progressData);
 
         try {
-            progressService.updateProgress(authenticatedUser, progressData);
-            return ResponseEntity.noContent().build();
+            progressService.registerProgress(authenticatedUser, progressData);
+            return ResponseEntity.status(HttpStatus.CREATED).build();
+        } catch (IllegalStateException e) {
+            logger.warn("Registro duplicado de progresso para player {} na fase {}", id, progressData.getCurrentPhaseIndex());
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         } catch (Exception e) {
             logger.error("Erro na atualização do progresso: ", e);
             return ResponseEntity.internalServerError().build();
