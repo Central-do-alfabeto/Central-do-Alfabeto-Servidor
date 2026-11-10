@@ -3,7 +3,6 @@ package com.centraldoalfabeto.game.service;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.JwtException;
 import jakarta.annotation.PostConstruct;
@@ -17,11 +16,13 @@ import java.util.UUID;
 
 @Service
 public class JwtService {
+    private static final int MIN_SECRET_LENGTH = 32;
+
     private final String secret;
     private final long expirationMs;
     private SecretKey secretKey;
 
-    public JwtService(@Value("${jwt.secret}") String secret,
+    public JwtService(@Value("${jwt.secret:}") String secret,
                       @Value("${jwt.expiration-ms}") long expirationMs) {
         this.secret = secret;
         this.expirationMs = expirationMs;
@@ -64,15 +65,17 @@ public class JwtService {
     }
 
     private SecretKey buildSecretKey(String secret) {
-        byte[] keyBytes;
-        try {
-            keyBytes = Decoders.BASE64.decode(secret);
-        } catch (RuntimeException ex) {
-            keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                "Variável de ambiente JWT_SECRET não definida. Defina um segredo aleatório com pelo menos "
+                    + MIN_SECRET_LENGTH + " caracteres.");
         }
 
-        if (keyBytes.length < 32) {
-            throw new IllegalStateException("JWT secret must be at least 256 bits (32 bytes) long");
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < MIN_SECRET_LENGTH) {
+            throw new IllegalStateException(
+                "JWT_SECRET é curto demais: são necessários pelo menos " + MIN_SECRET_LENGTH
+                    + " caracteres (256 bits).");
         }
 
         return Keys.hmacShaKeyFor(keyBytes);
