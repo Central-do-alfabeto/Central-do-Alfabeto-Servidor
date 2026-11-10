@@ -76,7 +76,6 @@ public class AuthService {
             throw new SecurityException("Papel solicitado incorreto para o usuário.");
         }
 
-        response.setRole(metadataRole != null ? metadataRole : (isStudent ? "STUDENT" : "EDUCATOR"));
         return response;
     }
     
