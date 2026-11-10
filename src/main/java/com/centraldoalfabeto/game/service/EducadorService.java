@@ -165,34 +165,34 @@ public class EducadorService {
         return dto;
     }
     
+    /**
+     * Atualiza os vínculos do educador somente removendo alunos já vinculados.
+     * Novos vínculos exigem {@link #addStudent}, que confere e-mail e nome do aluno;
+     * assim este método não permite vincular alunos arbitrários por UUID.
+     */
     @Transactional
     public Set<UUID> updateStudentIds(UUID educatorId, Set<UUID> studentIds) throws IllegalArgumentException {
         getEducatorOrThrow(educatorId);
 
-        if (studentIds != null && !studentIds.isEmpty()) {
-            Set<UUID> validIds = userRepository.findAllById(studentIds).stream()
-                .filter(this::isStudentUser)
-                .map(User::getId)
-                .collect(Collectors.toSet());
+        Set<UUID> desired = studentIds != null ? new LinkedHashSet<>(studentIds) : new LinkedHashSet<>();
+        List<EducatorStudentLink> currentLinks = educatorStudentLinkRepository.findByEducatorId(educatorId);
+        Set<UUID> currentIds = currentLinks.stream()
+            .map(EducatorStudentLink::getStudentId)
+            .collect(Collectors.toSet());
 
-            if (validIds.size() != studentIds.size()) {
-                Set<UUID> invalidIds = studentIds.stream()
-                    .filter(id -> !validIds.contains(id))
-                    .collect(Collectors.toSet());
-
-                throw new IllegalArgumentException("Um ou mais IDs de aluno são inválidos ou não encontrados: " + invalidIds);
-            }
-        }
-        
-        educatorStudentLinkRepository.deleteByEducatorId(educatorId);
-
-        if (studentIds != null && !studentIds.isEmpty()) {
-            for (UUID studentId : studentIds) {
-                educatorStudentLinkRepository.save(new EducatorStudentLink(educatorId, studentId));
-            }
+        Set<UUID> notLinked = desired.stream()
+            .filter(id -> !currentIds.contains(id))
+            .collect(Collectors.toSet());
+        if (!notLinked.isEmpty()) {
+            throw new IllegalArgumentException(
+                "Só é possível manter alunos já vinculados; para novos vínculos use POST /educators/{id}/students.");
         }
 
-        return studentIds != null ? Set.copyOf(studentIds) : Set.of();
+        currentLinks.stream()
+            .filter(link -> !desired.contains(link.getStudentId()))
+            .forEach(educatorStudentLinkRepository::delete);
+
+        return Set.copyOf(desired);
     }
 
     private User getEducatorOrThrow(UUID educatorId) {

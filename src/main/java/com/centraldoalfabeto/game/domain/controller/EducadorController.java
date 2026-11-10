@@ -132,6 +132,8 @@ public class EducadorController {
         try {
             Set<UUID> updatedStudentIds = educadorService.updateStudentIds(id, studentIds);
             return ResponseEntity.ok(updatedStudentIds);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
