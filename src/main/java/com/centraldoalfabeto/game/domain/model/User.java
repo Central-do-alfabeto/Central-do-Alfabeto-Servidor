@@ -25,7 +25,7 @@ public class User {
     @Column(name = "senha_hash") 
     private String senhaHash;
     
-    @Column(name = "metadados", columnDefinition = "jsonb") 
+    @Column(name = "metadados")
     @JdbcTypeCode(SqlTypes.JSON)
     private String metadados;
 }
