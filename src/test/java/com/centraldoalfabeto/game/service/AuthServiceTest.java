@@ -19,7 +19,6 @@ import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
 import com.centraldoalfabeto.game.repository.EducatorStudentLinkRepository;
 import com.centraldoalfabeto.game.repository.PlayerDataRepository;
 import com.centraldoalfabeto.game.repository.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import java.util.List;
 import java.util.Optional;
@@ -52,7 +51,7 @@ class AuthServiceTest {
         jwtService = new JwtService(SECRET, 3_600_000L);
         jwtService.init();
         authService = new AuthService(userRepository, linkRepository, playerDataRepository,
-            passwordEncoder, jwtService, new ObjectMapper());
+            passwordEncoder, jwtService);
         jogadorService = new JogadorService(userRepository, passwordEncoder, jwtService);
         educadorService = new EducadorService(linkRepository, userRepository, playerDataRepository,
             passwordEncoder, jwtService);

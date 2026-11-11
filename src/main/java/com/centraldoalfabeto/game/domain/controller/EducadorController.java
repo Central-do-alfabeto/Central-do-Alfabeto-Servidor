@@ -69,7 +69,7 @@ public class EducadorController {
     }
 
     @PostMapping("/{id}/students")
-    public ResponseEntity<StudentSummaryDTO> addStudent(
+    public ResponseEntity<?> addStudent(
             @PathVariable UUID id,
             @Valid @RequestBody AddStudentRequestDTO request,
             @AuthenticationPrincipal JwtAuthenticatedUser authenticatedUser
@@ -88,9 +88,9 @@ public class EducadorController {
             StudentSummaryDTO student = educadorService.addStudent(id, request);
             return ResponseEntity.status(HttpStatus.CREATED).body(student);
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(ApiErrors.of(ex.getMessage()));
         } catch (IllegalStateException ex) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiErrors.of(ex.getMessage()));
         } catch (Exception ex) {
             return ResponseEntity.internalServerError().build();
         }

@@ -239,4 +239,40 @@ class AuthorizationIntegrationTest {
                 .header("Access-Control-Request-Method", "POST"))
             .andExpect(status().isForbidden());
     }
+
+    @Test
+    void vinculoComDadosInvalidosUsaMensagemUnicaSemRevelarContas() throws Exception {
+        String url = "/educators/" + educatorA.getId() + "/students";
+        String auth = bearer(educatorA, "EDUCATOR");
+        String[] bodies = {
+            "{\"email\":\"naoexiste@teste.com\",\"studentName\":\"Aluno Dois\"}",
+            "{\"email\":\"aluno2@teste.com\",\"studentName\":\"Nome Errado\"}",
+            "{\"email\":\"b@teste.com\",\"studentName\":\"Educador B\"}"
+        };
+
+        String primeira = null;
+        for (String body : bodies) {
+            String resposta = mockMvc.perform(post(url).header("Authorization", auth)
+                    .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+            if (primeira == null) {
+                primeira = resposta;
+            }
+            assertEquals(primeira, resposta);
+        }
+    }
+
+    @Test
+    void metadadosComTextoSoltoNaoViramEducador() throws Exception {
+        User falso = saveUser("Falso", "falso@teste.com", "student");
+        falso.setMetadados("{\"role\":\"student\",\"nota\":\"educator\"}");
+        userRepository.save(falso);
+
+        mockMvc.perform(put("/educators/" + falso.getId() + "/updateStudentIds")
+                .header("Authorization", bearer(falso, "EDUCATOR"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json()))
+            .andExpect(status().isBadRequest());
+    }
 }

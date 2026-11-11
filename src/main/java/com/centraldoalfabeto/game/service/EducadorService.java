@@ -3,6 +3,7 @@ package com.centraldoalfabeto.game.service;
 import com.centraldoalfabeto.game.domain.model.EducatorStudentLink;
 import com.centraldoalfabeto.game.domain.model.PlayerData;
 import com.centraldoalfabeto.game.domain.model.User;
+import com.centraldoalfabeto.game.domain.model.UserRole;
 import com.centraldoalfabeto.game.dto.AddStudentRequestDTO;
 import com.centraldoalfabeto.game.dto.EducatorRegistrationDTO;
 import com.centraldoalfabeto.game.dto.PlayerDataSnapshotDTO;
@@ -29,6 +30,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class EducadorService {
+    /** Mensagem única para aluno inexistente, nome divergente ou conta que não é de aluno (evita enumerar contas). */
+    static final String GENERIC_LINK_ERROR = "Não foi possível vincular: verifique o e-mail e o nome informados.";
+
     private final EducatorStudentLinkRepository educatorStudentLinkRepository;
     private final UserRepository userRepository;
     private final PlayerDataRepository playerDataRepository;
@@ -103,15 +107,15 @@ public class EducadorService {
         }
 
         User studentUser = userRepository.findByEmail(email)
-            .orElseThrow(() -> new IllegalArgumentException("Aluno não encontrado com o email informado."));
+            .orElseThrow(() -> new IllegalArgumentException(GENERIC_LINK_ERROR));
 
         String storedStudentName = studentUser.getNome() != null ? studentUser.getNome().trim() : "";
         if (!storedStudentName.equalsIgnoreCase(studentName)) {
-            throw new IllegalArgumentException("Nome do aluno não confere com o cadastro.");
+            throw new IllegalArgumentException(GENERIC_LINK_ERROR);
         }
 
         if (!isStudentUser(studentUser)) {
-            throw new IllegalArgumentException("O usuário informado não está cadastrado como aluno.");
+            throw new IllegalArgumentException(GENERIC_LINK_ERROR);
         }
 
         if (educatorStudentLinkRepository.existsByEducatorIdAndStudentId(educatorId, studentUser.getId())) {
@@ -197,10 +201,7 @@ public class EducadorService {
 
     private User getEducatorOrThrow(UUID educatorId) {
         return userRepository.findById(educatorId)
-            .filter(user -> {
-                String metadata = user.getMetadados();
-                return metadata != null && metadata.toLowerCase().contains("educator");
-            })
+            .filter(user -> UserRole.of(user) == UserRole.EDUCATOR)
             .orElseThrow(() -> new IllegalArgumentException("Educador não encontrado."));
     }
 
@@ -240,21 +241,7 @@ public class EducadorService {
     }
 
     private boolean isStudentUser(User user) {
-        if (user == null) {
-            return false;
-        }
-
-        String metadata = user.getMetadados();
-        if (metadata == null) {
-            return playerDataRepository.existsByPlayerId(user.getId());
-        }
-
-        String normalized = metadata.toLowerCase();
-        if (normalized.contains("student") || normalized.contains("player") || normalized.contains("aluno")) {
-            return true;
-        }
-
-        return playerDataRepository.existsByPlayerId(user.getId());
+        return UserRole.of(user) == UserRole.STUDENT;
     }
 
     private int resolveNextPhaseIndex(UUID playerId) {

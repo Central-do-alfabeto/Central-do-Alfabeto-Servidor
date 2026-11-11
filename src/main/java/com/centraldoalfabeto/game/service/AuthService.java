@@ -1,6 +1,7 @@
 package com.centraldoalfabeto.game.service;
 
 import com.centraldoalfabeto.game.domain.model.User;
+import com.centraldoalfabeto.game.domain.model.UserRole;
 import com.centraldoalfabeto.game.domain.model.EducatorStudentLink;
 import com.centraldoalfabeto.game.dto.LoginRequestDTO;
 import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
@@ -12,8 +13,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +31,6 @@ public class AuthService {
     private final PlayerDataRepository playerDataRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private final ObjectMapper objectMapper;
 
     @Autowired
     public AuthService(
@@ -40,15 +38,13 @@ public class AuthService {
         EducatorStudentLinkRepository educatorStudentLinkRepository,
         PlayerDataRepository playerDataRepository,
         PasswordEncoder passwordEncoder,
-        JwtService jwtService,
-        ObjectMapper objectMapper
+        JwtService jwtService
     ) {
         this.userRepository = userRepository;
         this.educatorStudentLinkRepository = educatorStudentLinkRepository;
         this.playerDataRepository = playerDataRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
-        this.objectMapper = objectMapper;
     }
 
     public UnifiedLoginResponseDTO authenticate(LoginRequestDTO loginData) throws SecurityException {
@@ -61,13 +57,12 @@ public class AuthService {
 
         // O papel vem exclusivamente dos metadados gravados no servidor; nada enviado pelo cliente é considerado.
         // Contas sem papel reconhecido são recusadas (em vez de assumir um papel).
-        String metadataRole = resolveRoleFromMetadata(user.getMetadados());
-        Boolean isStudent = classifyRole(metadataRole);
-        if (isStudent == null) {
+        UserRole role = UserRole.of(user);
+        if (role == null) {
             throw new SecurityException("Conta sem papel válido definido.");
         }
 
-        return isStudent ? buildPlayerResponse(user) : buildEducatorResponse(user);
+        return role == UserRole.STUDENT ? buildPlayerResponse(user) : buildEducatorResponse(user);
     }
 
     private UnifiedLoginResponseDTO buildPlayerResponse(User user) {
@@ -134,41 +129,6 @@ public class AuthService {
         dto.setUserName(user.getNome());
         dto.setEmail(user.getEmail());
         return dto;
-    }
-
-    /** Retorna true para aluno, false para educador e null quando o papel é ausente ou desconhecido. */
-    private Boolean classifyRole(String role) {
-        if (role == null) {
-            return null;
-        }
-        if (role.equalsIgnoreCase("aluno") || role.equalsIgnoreCase("student") || role.equalsIgnoreCase("player")) {
-            return true;
-        }
-        if (role.equalsIgnoreCase("educador") || role.equalsIgnoreCase("educator")) {
-            return false;
-        }
-        return null;
-    }
-
-    private String resolveRoleFromMetadata(String rawMetadata) {
-        if (rawMetadata == null || rawMetadata.isBlank()) {
-            return null;
-        }
-
-        try {
-            JsonNode root = objectMapper.readTree(rawMetadata);
-            JsonNode roleNode = root.path("role");
-            if (roleNode.isTextual()) {
-                String roleValue = roleNode.asText();
-                if (roleValue != null && !roleValue.isBlank()) {
-                    return roleValue;
-                }
-            }
-        } catch (Exception ex) {
-            logger.warn("Não foi possível interpretar metadados do usuário:", ex);
-        }
-
-        return null;
     }
 
     private int resolveNextPhaseIndex(UUID playerId) {
