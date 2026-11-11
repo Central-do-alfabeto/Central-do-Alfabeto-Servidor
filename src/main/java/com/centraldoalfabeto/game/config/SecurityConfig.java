@@ -1,6 +1,7 @@
 package com.centraldoalfabeto.game.config;
 
 import com.centraldoalfabeto.game.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -35,6 +36,8 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // O dispatch de erro (/error) não passa pelo filtro JWT; sem isto, qualquer 4xx/5xx viraria 401.
+                .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/players/register").permitAll()
                 .requestMatchers(HttpMethod.POST, "/educators/register").permitAll()
