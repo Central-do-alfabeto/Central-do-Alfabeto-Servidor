@@ -34,3 +34,9 @@ build/
 
 # Environment files
 .env
+
+# Saída de build de IDE (Eclipse) e variáveis de ambiente
+bin/
+.env
+.env.*
+!.env.example

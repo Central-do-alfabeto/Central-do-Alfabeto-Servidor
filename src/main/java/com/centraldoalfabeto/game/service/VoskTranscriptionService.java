@@ -21,21 +21,16 @@ public class VoskTranscriptionService {
     @PostConstruct
     public void init() {
         try {
-        	org.vosk.LibVosk.setLogLevel(LogLevel.DEBUG);
-        	System.out.println("Tentando carregar modelo Vosk...");
-        	
-            InputStream modelStream = getClass().getClassLoader().getResourceAsStream(MODEL_PATH);
-            if (modelStream == null) {
-                throw new RuntimeException("Modelo Vosk não encontrado no classpath: " + MODEL_PATH);
-            }
-            
+            org.vosk.LibVosk.setLogLevel(LogLevel.WARNINGS);
+
+            // O modelo é lido do diretório "vosk-model" (relativo ao diretório de execução).
             String absolutePath = new java.io.File(MODEL_PATH).getAbsolutePath();
             System.out.println("Tentando carregar modelo Vosk de: " + absolutePath);
 
             model = new Model(MODEL_PATH);
             System.out.println("Modelo Vosk carregado com sucesso!");
-        } catch (Exception e) {
-            System.err.println("Falha ao carregar o modelo Vosk:");
+        } catch (Exception | LinkageError e) {
+            System.err.println("Falha ao carregar o modelo Vosk (o reconhecimento de fala ficará indisponível):");
             e.printStackTrace();
         }
     }
