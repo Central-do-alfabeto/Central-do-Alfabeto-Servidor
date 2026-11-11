@@ -8,6 +8,8 @@ import com.centraldoalfabeto.game.service.JogadorService;
 import com.centraldoalfabeto.game.service.ProgressService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import com.centraldoalfabeto.game.config.ApiErrors;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -35,7 +37,7 @@ public class JogadorController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<UnifiedLoginResponseDTO> registerPlayer(@Valid @RequestBody PlayerRegistrationDTO registrationDTO) {
+    public ResponseEntity<?> registerPlayer(@Valid @RequestBody PlayerRegistrationDTO registrationDTO) {
         if (registrationDTO.getEmail() == null || registrationDTO.getSenha() == null) {
              return ResponseEntity.badRequest().build();
         }
@@ -44,16 +46,16 @@ public class JogadorController {
             UnifiedLoginResponseDTO responseDTO = jogadorService.registerPlayer(registrationDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(responseDTO);
             
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (IllegalArgumentException | DataIntegrityViolationException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiErrors.of("E-mail já cadastrado."));
         } catch (Exception e) {
             logger.error("Erro no registro do jogador: ", e);
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.internalServerError().body(ApiErrors.of("Erro interno."));
         }
     }
 
     @PostMapping("/{id}/progress")
-    public ResponseEntity<Void> updateProgress(
+    public ResponseEntity<?> updateProgress(
             @PathVariable UUID id, 
             @Valid @RequestBody ProgressUpdateDTO progressData,
             @AuthenticationPrincipal JwtAuthenticatedUser authenticatedUser) {
@@ -69,12 +71,12 @@ public class JogadorController {
         try {
             progressService.registerProgress(authenticatedUser, progressData);
             return ResponseEntity.status(HttpStatus.CREATED).build();
-        } catch (IllegalStateException e) {
+        } catch (IllegalStateException | DataIntegrityViolationException e) {
             logger.warn("Registro duplicado de progresso para player {} na fase {}", id, progressData.getCurrentPhaseIndex());
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiErrors.of("Progresso desta fase já registrado."));
         } catch (Exception e) {
             logger.error("Erro na atualização do progresso: ", e);
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.internalServerError().body(ApiErrors.of("Erro interno."));
         }
     }
 }

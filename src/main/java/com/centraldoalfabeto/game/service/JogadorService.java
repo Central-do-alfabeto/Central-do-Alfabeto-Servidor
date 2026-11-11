@@ -29,7 +29,7 @@ public class JogadorService {
 
     @Transactional
     public UnifiedLoginResponseDTO registerPlayer(PlayerRegistrationDTO dto) throws IllegalArgumentException {
-        if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
+        if (userRepository.findByEmail(EmailNormalizer.normalize(dto.getEmail())).isPresent()) {
             throw new IllegalArgumentException("Email já registrado.");
         }
 

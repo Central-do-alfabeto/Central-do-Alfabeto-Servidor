@@ -9,6 +9,8 @@ import com.centraldoalfabeto.game.service.EducadorService;
 import com.centraldoalfabeto.game.security.JwtAuthenticatedUser;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import com.centraldoalfabeto.game.config.ApiErrors;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,7 +31,7 @@ public class EducadorController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<UnifiedLoginResponseDTO> registerEducator(@Valid @RequestBody EducatorRegistrationDTO registrationDTO) {
+    public ResponseEntity<?> registerEducator(@Valid @RequestBody EducatorRegistrationDTO registrationDTO) {
         
         if (registrationDTO.getEmail() == null || registrationDTO.getNome() == null || registrationDTO.getSenha() == null) {
             return ResponseEntity.badRequest().build();
@@ -38,11 +40,10 @@ public class EducadorController {
         try {
             UnifiedLoginResponseDTO responseDTO = educadorService.registerEducator(registrationDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(responseDTO);
-        } catch (IllegalArgumentException e) {
-            // Exemplo: Email já existe
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        } catch (IllegalArgumentException | DataIntegrityViolationException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiErrors.of("E-mail já cadastrado."));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.internalServerError().body(ApiErrors.of("Erro interno."));
         }
     }
 

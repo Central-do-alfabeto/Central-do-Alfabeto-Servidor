@@ -28,4 +28,8 @@ public class User {
     @Column(name = "metadados")
     @JdbcTypeCode(SqlTypes.JSON)
     private String metadados;
+
+    public void setEmail(String email) {
+        this.email = email == null ? null : email.trim().toLowerCase(java.util.Locale.ROOT);
+    }
 }

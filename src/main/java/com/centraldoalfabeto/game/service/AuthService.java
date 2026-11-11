@@ -52,7 +52,7 @@ public class AuthService {
     }
 
     public UnifiedLoginResponseDTO authenticate(LoginRequestDTO loginData) throws SecurityException {
-        User user = userRepository.findByEmail(loginData.getEmail())
+        User user = userRepository.findByEmail(EmailNormalizer.normalize(loginData.getEmail()))
             .orElseThrow(() -> new SecurityException("Credenciais inválidas."));
             
         if (!passwordEncoder.matches(loginData.getPassword(), user.getSenhaHash())) {

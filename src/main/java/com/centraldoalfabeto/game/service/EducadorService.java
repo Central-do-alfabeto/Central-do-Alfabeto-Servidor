@@ -52,7 +52,7 @@ public class EducadorService {
 
     @Transactional
     public UnifiedLoginResponseDTO registerEducator(EducatorRegistrationDTO dto) throws IllegalArgumentException {
-        if (userRepository.findByEmail(dto.getEmail()).isPresent()) {
+        if (userRepository.findByEmail(EmailNormalizer.normalize(dto.getEmail())).isPresent()) {
             throw new IllegalArgumentException("Email já registrado.");
         }
         
@@ -91,7 +91,7 @@ public class EducadorService {
     public StudentSummaryDTO addStudent(UUID educatorId, AddStudentRequestDTO request) {
         getEducatorOrThrow(educatorId);
 
-        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        String email = request.getEmail() != null ? EmailNormalizer.normalize(request.getEmail()) : "";
         String studentName = request.getStudentName() != null ? request.getStudentName().trim() : "";
 
         if (email.isEmpty()) {
