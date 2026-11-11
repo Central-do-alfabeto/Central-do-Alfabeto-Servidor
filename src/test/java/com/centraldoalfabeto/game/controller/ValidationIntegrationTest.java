@@ -113,4 +113,33 @@ class ValidationIntegrationTest {
             .andExpect(jsonPath("$.fields.email").exists())
             .andExpect(jsonPath("$.fields.studentName").exists());
     }
+
+    @Test
+    void progressoAcimaDoLimiteOuComSaltoRetorna400() throws Exception {
+        User student = new User();
+        student.setNome("Aluno");
+        student.setEmail("limite@teste.com");
+        student.setSenhaHash("hash");
+        student.setMetadados("{\"role\":\"student\"}");
+        student = userRepository.save(student);
+        String token = "Bearer " + jwtService.generateToken(student.getId(), "STUDENT", student.getEmail());
+        String url = "/players/" + student.getId() + "/progress";
+
+        mockMvc.perform(post(url).header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPhaseIndex\":26}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.fields.currentPhaseIndex").exists());
+
+        mockMvc.perform(post(url).header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPhaseIndex\":3}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").exists());
+
+        mockMvc.perform(post(url).header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPhaseIndex\":0}"))
+            .andExpect(status().isCreated());
+        mockMvc.perform(post(url).header("Authorization", token).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPhaseIndex\":1}"))
+            .andExpect(status().isCreated());
+    }
 }

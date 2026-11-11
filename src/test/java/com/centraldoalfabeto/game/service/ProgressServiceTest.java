@@ -51,6 +51,7 @@ class ProgressServiceTest {
 
     @Test
     void registraProgressoParaOAlunoAutenticado() {
+        when(playerDataRepository.findLatestPhaseIndexByPlayerId(playerId)).thenReturn(Optional.of(2));
         PlayerData saved = progressService.registerProgress(principal, dto(3, 2L, 5L));
 
         assertEquals(playerId, saved.getPlayerId());
@@ -96,5 +97,21 @@ class ProgressServiceTest {
         UUID novo = UUID.randomUUID();
         when(playerDataRepository.findLatestPhaseIndexByPlayerId(novo)).thenReturn(Optional.empty());
         assertEquals(0, progressService.resolveNextPhaseIndex(novo));
+    }
+
+    @Test
+    void saltoDeFaseERejeitado() {
+        when(playerDataRepository.findLatestPhaseIndexByPlayerId(playerId)).thenReturn(Optional.of(2));
+
+        assertThrows(IllegalArgumentException.class,
+            () -> progressService.registerProgress(principal, dto(5, 0L, 0L)));
+        verify(playerDataRepository, never()).save(any(PlayerData.class));
+    }
+
+    @Test
+    void primeiraFaseDeveSerZero() {
+        assertThrows(IllegalArgumentException.class,
+            () -> progressService.registerProgress(principal, dto(1, 0L, 0L)));
+        progressService.registerProgress(principal, dto(0, 0L, 0L));
     }
 }

@@ -71,6 +71,8 @@ public class JogadorController {
         try {
             progressService.registerProgress(authenticatedUser, progressData);
             return ResponseEntity.status(HttpStatus.CREATED).build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiErrors.of(e.getMessage()));
         } catch (IllegalStateException | DataIntegrityViolationException e) {
             logger.warn("Registro duplicado de progresso para player {} na fase {}", id, progressData.getCurrentPhaseIndex());
             return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiErrors.of("Progresso desta fase já registrado."));

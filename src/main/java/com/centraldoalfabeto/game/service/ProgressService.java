@@ -37,6 +37,16 @@ public class ProgressService {
             throw new IllegalStateException("Progresso da fase já registrado para este jogador.");
         }
 
+        // Regra de sequência: só se pode registrar a próxima fase (última registrada + 1) ou uma anterior ainda
+        // não registrada; saltar fases é rejeitado.
+        int nextExpected = playerDataRepository.findLatestPhaseIndexByPlayerId(playerId)
+            .map(latest -> latest + 1)
+            .orElse(0);
+        if (phaseIndex > nextExpected) {
+            throw new IllegalArgumentException(
+                "Fase fora de sequência: a próxima fase esperada é " + nextExpected + ".");
+        }
+
         long totalErrors = dto.getErrorsData() != null ? Math.max(dto.getErrorsData(), 0L) : 0L;
         long totalRepeats = dto.getSoundRepeatsData() != null ? Math.max(dto.getSoundRepeatsData(), 0L) : 0L;
 
