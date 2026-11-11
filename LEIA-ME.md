@@ -15,6 +15,7 @@ Read in English: [README.md](README.md)
 - [Como rodar localmente](#como-rodar-localmente)
 - [Banco de dados e migrations](#banco-de-dados-e-migrations)
 - [Testes](#testes)
+- [Validação realizada](#validação-realizada)
 - [Integração contínua](#integração-contínua)
 - [Implantação](#implantação)
 - [Detalhes de implementação e limitações conhecidas](#detalhes-de-implementação-e-limitações-conhecidas)
@@ -80,9 +81,26 @@ Pacotes em `com.centraldoalfabeto.game`:
 | POST | `/educators/{id}/students` | `EDUCATOR`, próprio id | Vincula um aluno; corpo com `email` e `studentName`, que devem coincidir com o cadastro do aluno. Qualquer divergência devolve o mesmo `400` genérico, para não permitir enumerar contas. |
 | GET | `/educators/student-progress/{studentId}` | `EDUCATOR`, aluno vinculado | Devolve totais e resumos por fase de um aluno vinculado. |
 | PUT | `/educators/{id}/updateStudentIds` | `EDUCATOR`, próprio id | O corpo é uma lista de ids de alunos; só permite manter ou remover alunos já vinculados (`400` se houver outro id). |
-| POST | `/audio/transcribe` | Qualquer usuário autenticado (aluno ou educador) | Campo multipart `audioFile`: WAV PCM 16-bit, mono, 16 kHz, até 1 MB (cerca de 30 s). Devolve o texto em texto simples. `415` para outros formatos, `413` se for grande demais, `503` se o modelo de fala estiver indisponível. |
+| POST | `/audio/transcribe` | Qualquer usuário autenticado (aluno ou educador) | Campo multipart `audioFile`: WAV PCM 16-bit, mono, 16 kHz, até 1 MB (cerca de 30 s). Devolve o texto como `text/plain`; **quando nada é reconhecido a resposta é `200` com corpo vazio** (o frontend trata a string vazia como "sem resultado"). `415` para outros formatos, `413` se for grande demais, `503` se o modelo de fala estiver indisponível. |
 
 Os corpos de erro são JSON. Falhas de validação retornam `400` com `{"error": "Dados inválidos", "fields": {"campo": "mensagem"}}`. Token ausente, inválido ou expirado retorna `401` com `{"error": "..."}`; `403` é usado apenas por falta de permissão. Violações de unicidade (cadastro concorrente ou progresso de fase duplicado) retornam `409`. O cadastro exige nome, e-mail válido e senha de 8 a 72 caracteres.
+
+### Códigos de erro
+
+Todos os corpos de erro são JSON (`{"error": "..."}`), com ou sem token.
+
+| Status | Quando |
+| --- | --- |
+| 400 | Falha de validação (com `fields`), JSON malformado, parâmetro ou parte multipart ausente, valor inválido na URL (por exemplo id que não é UUID), fase fora de sequência ou do intervalo, falha genérica no vínculo de aluno |
+| 401 | Token ausente, inválido ou expirado (também para rotas inexistentes sem token) |
+| 403 | Autenticado, mas sem permissão (papel errado ou id de outro usuário) |
+| 404 | Rota inexistente (com token válido) |
+| 405 | Método HTTP não suportado para a rota |
+| 409 | E-mail duplicado, progresso de fase duplicado, aluno já vinculado, violação de unicidade |
+| 413 | Upload maior que 1 MB |
+| 415 | Tipo de conteúdo não suportado, ou áudio que não é WAV PCM 16-bit mono 16 kHz |
+| 500 | Falha inesperada (mensagem genérica; detalhes apenas no log do servidor) |
+| 503 | Modelo de fala não carregado |
 
 ## Pré-requisitos
 
@@ -115,7 +133,7 @@ cp .env.example .env               # depois edite os valores
 docker compose up --build
 ```
 
-O Compose sobe o PostgreSQL 16 (publicado apenas em `127.0.0.1:5432`) e a API em `http://localhost:8080`. Dentro do Compose, `DATABASE_URL` aponta para o serviço `db`. Observação: a configuração Docker não foi executada de ponta a ponta; apenas a sintaxe do arquivo Compose foi validada.
+O Compose sobe o PostgreSQL 16 (publicado apenas em `127.0.0.1:5432`) e a API em `http://localhost:8080`. Dentro do Compose, `DATABASE_URL` aponta para o serviço `db`. A configuração Docker foi executada localmente; veja [Validação realizada](#validação-realizada).
 
 ### Sem Docker
 
@@ -149,7 +167,11 @@ Para um **banco preexistente** que já tem essas tabelas (por exemplo, criado an
 ./mvnw -B test
 ```
 
-São 66 testes: unitários de serviço (Mockito) e de integração com MockMvc, cobrindo autorização entre usuários, validação de entrada, papel no login e CORS. Rodam em um H2 em memória em modo PostgreSQL e não precisam de banco externo. A mesma migration do Flyway é aplicada; o tipo `jsonb` é emulado no H2 por um domínio criado na URL JDBC de teste. O modelo Vosk não é carregado nos testes (`vosk.model-path` vazio) e o reconhecedor é simulado (mock).
+São 78 testes: unitários de serviço (Mockito) e de integração com MockMvc, cobrindo autorização entre usuários, validação de entrada, papel no login e CORS. Rodam em um H2 em memória em modo PostgreSQL e não precisam de banco externo. A mesma migration do Flyway é aplicada; o tipo `jsonb` é emulado no H2 por um domínio criado na URL JDBC de teste. O modelo Vosk não é carregado nos testes (`vosk.model-path` vazio) e o reconhecedor é simulado (mock).
+
+## Validação realizada
+
+Além dos testes automatizados, a configuração Docker foi validada manualmente em uma máquina de desenvolvimento: a imagem foi construída, iniciada com o Compose junto com o PostgreSQL 16 (credenciais descartáveis, portas do host diferentes das padrão) e depois removida. Observado: o Flyway aplicou a `V1` e a `V2`; o `ddl-auto=validate` do Hibernate passou; o modelo Vosk foi carregado dentro da imagem; a aplicação rodou como usuário não-root usando cerca de 400 a 470 MiB de memória; e os cenários de cadastro, login, progresso, vínculo de aluno e códigos de erro acima se comportaram como documentado, incluindo uma requisição real de transcrição de um WAV silencioso (`200`, corpo vazio). **Nunca foi implantado** em uma plataforma de hospedagem.
 
 ## Integração contínua
 
@@ -174,8 +196,8 @@ São 66 testes: unitários de serviço (Mockito) e de integração com MockMvc, 
 - **Tokens.** Os JWTs não podem ser revogados e não são conferidos no banco a cada requisição; não há refresh token, limitação de taxa nem verificação de e-mail.
 - **Papéis** ficam em uma coluna JSON (`metadados`), e não em uma coluna dedicada; são lidos em um único ponto (`UserRole`), com interpretação estruturada do JSON.
 - **Senhas** são limitadas a 72 caracteres (limite do BCrypt).
-- **Docker**: a imagem e o Compose não foram executados no ambiente em que este repositório foi preparado.
-- **PostgreSQL** não foi usado nos testes automatizados; a validação do schema contra ele não foi verificada.
+- **Docker**: a imagem e o Compose foram construídos e executados localmente (veja [Validação realizada](#validação-realizada)); nunca foram implantados em uma plataforma de hospedagem.
+- **PostgreSQL**: os testes automatizados usam H2. As migrations e a validação do schema também foram exercitadas em um PostgreSQL 16 real na execução local com Docker, mas não fazem parte do workflow de CI.
 - O histórico do repositório contém credenciais antigas de antes da limpeza; devem ser consideradas comprometidas e rotacionadas.
 - A pasta de saída do Eclipse, `bin/`, não é mais versionada (está ignorada). O histórico anterior ainda carrega seus arquivos grandes.
 

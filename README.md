@@ -15,6 +15,7 @@ Leia em português: [LEIA-ME.md](LEIA-ME.md)
 - [Running locally](#running-locally)
 - [Database and migrations](#database-and-migrations)
 - [Tests](#tests)
+- [Validation performed](#validation-performed)
 - [Continuous integration](#continuous-integration)
 - [Deployment](#deployment)
 - [Implementation details and known limitations](#implementation-details-and-known-limitations)
@@ -80,9 +81,26 @@ Package layout under `com.centraldoalfabeto.game`:
 | POST | `/educators/{id}/students` | `EDUCATOR`, own id | Links a student; body `email` and `studentName`, which must match the student's registration. Any mismatch returns the same generic `400`, so accounts cannot be enumerated. |
 | GET | `/educators/student-progress/{studentId}` | `EDUCATOR`, linked student | Returns totals and per-phase snapshots of a linked student. |
 | PUT | `/educators/{id}/updateStudentIds` | `EDUCATOR`, own id | Body is a list of student ids; can only keep or remove students already linked (`400` if it contains anyone else). |
-| POST | `/audio/transcribe` | Any authenticated user (student or educator) | Multipart field `audioFile`: WAV PCM 16-bit, mono, 16 kHz, up to 1 MB (about 30 s). Returns the text as plain text. `415` for other formats, `413` if too large, `503` if the speech model is unavailable. |
+| POST | `/audio/transcribe` | Any authenticated user (student or educator) | Multipart field `audioFile`: WAV PCM 16-bit, mono, 16 kHz, up to 1 MB (about 30 s). Returns the text as `text/plain`; **when nothing is recognized the response is `200` with an empty body** (the frontend treats an empty string as "no result"). `415` for other formats, `413` if too large, `503` if the speech model is unavailable. |
 
 Error bodies are JSON. Validation failures return `400` with `{"error": "Dados inválidos", "fields": {"campo": "mensagem"}}`. Missing, invalid or expired tokens return `401` with `{"error": "..."}`; `403` is used only for lack of permission. Unique-constraint violations (concurrent registration or duplicated phase progress) return `409`. Registration requires a name, a valid e-mail and a password of 8 to 72 characters.
+
+### Error codes
+
+All error bodies are JSON (`{"error": "..."}`), with or without a token.
+
+| Status | When |
+| --- | --- |
+| 400 | Validation failure (with `fields`), malformed JSON, missing parameter or multipart part, invalid value in the URL (e.g. a non-UUID id), phase out of sequence or out of range, generic student-link failure |
+| 401 | Missing, invalid or expired token (also for unknown routes without a token) |
+| 403 | Authenticated but not allowed (wrong role or another user's id) |
+| 404 | Unknown route (with a valid token) |
+| 405 | HTTP method not supported for the route |
+| 409 | Duplicate e-mail, duplicate phase progress, student already linked, unique-constraint violation |
+| 413 | Upload larger than 1 MB |
+| 415 | Unsupported content type, or audio that is not WAV PCM 16-bit mono 16 kHz |
+| 500 | Unexpected failure (generic message, details only in the server log) |
+| 503 | Speech model not loaded |
 
 ## Prerequisites
 
@@ -115,7 +133,7 @@ cp .env.example .env               # then edit the values
 docker compose up --build
 ```
 
-Compose starts PostgreSQL 16 (published only on `127.0.0.1:5432`) and the API on `http://localhost:8080`. The `DATABASE_URL` inside Compose points to the `db` service. Note: the Docker setup has not been run end to end; only the Compose file syntax was validated.
+Compose starts PostgreSQL 16 (published only on `127.0.0.1:5432`) and the API on `http://localhost:8080`. The `DATABASE_URL` inside Compose points to the `db` service. The Docker setup was run locally; see [Validation performed](#validation-performed).
 
 ### Without Docker
 
@@ -149,7 +167,11 @@ For a **pre-existing database** that already has these tables (for example one c
 ./mvnw -B test
 ```
 
-66 tests: service unit tests (Mockito) and integration tests with MockMvc covering authorization between users, input validation, login role handling and CORS. They run against an in-memory H2 database in PostgreSQL mode and need no external database. The same Flyway migration is applied; the `jsonb` type is emulated in H2 through a domain created in the test JDBC URL. The Vosk model is not loaded in tests (`vosk.model-path` is empty) and the recognizer is mocked.
+78 tests: service unit tests (Mockito) and integration tests with MockMvc covering authorization between users, input validation, login role handling and CORS. They run against an in-memory H2 database in PostgreSQL mode and need no external database. The same Flyway migration is applied; the `jsonb` type is emulated in H2 through a domain created in the test JDBC URL. The Vosk model is not loaded in tests (`vosk.model-path` is empty) and the recognizer is mocked.
+
+## Validation performed
+
+Besides the automated tests, the Docker setup was validated manually on a development machine: the image was built, started with Compose together with PostgreSQL 16 (disposable credentials, non-default host ports), and then removed. Observed: Flyway applied `V1` and `V2`; Hibernate `ddl-auto=validate` passed; the Vosk model loaded inside the image; the application ran as a non-root user using about 400 to 470 MiB of memory; and the registration, login, progress, student-link and error-code scenarios above behaved as documented, including a real transcription request of a silent WAV (`200`, empty body). It has **never been deployed** to a hosting platform.
 
 ## Continuous integration
 
@@ -174,8 +196,8 @@ There is **no public hosted instance** of this API, and no deployment configurat
 - **Tokens.** JWTs cannot be revoked and are not checked against the database on each request; there are no refresh tokens, rate limiting or e-mail verification.
 - **Roles** live in a JSON column (`metadados`) rather than in a dedicated column; they are read in a single place (`UserRole`) with structured JSON parsing.
 - **Passwords** are limited to 72 characters (BCrypt limit).
-- **Docker** images and Compose were not executed in the environment used to prepare this repository.
-- **PostgreSQL** was not used in automated tests; schema validation against it is unverified.
+- **Docker**: the image and Compose setup were built and run locally (see [Validation performed](#validation-performed)); they were never deployed to a hosting platform.
+- **PostgreSQL**: the automated tests use H2. Migrations and schema validation were also exercised against a real PostgreSQL 16 in the local Docker run, but not as part of the CI workflow.
 - The repository history contains old credentials from before the cleanup; they should be considered compromised and rotated.
 - The Eclipse output folder `bin/` is no longer versioned (it is ignored). Earlier history still carries its large files.
 
