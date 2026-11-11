@@ -73,16 +73,16 @@ Package layout under `com.centraldoalfabeto.game`:
 | Method | Path | Authentication | Description |
 | --- | --- | --- | --- |
 | POST | `/auth/login` | Public | Logs in with `email` and `password`; returns token, role and role-specific data (next phase for students, linked students for educators). |
-| POST | `/players/register` | Public | Registers a student (`nome`, `email`, `senha`) and returns a token. `409` if the e-mail exists. |
+| POST | `/players/register` | Public | Registers a student (`nome`, `email`, `senha`) and returns a token. `409` if the e-mail exists (compared case-insensitively). |
 | POST | `/educators/register` | Public | Registers an educator (same body) and returns a token. |
-| POST | `/players/{id}/progress` | `STUDENT`, own id | Stores the snapshot of a phase (`currentPhaseIndex`, `errorsData`, `soundRepeatsData`). `409` if the phase was already stored. |
+| POST | `/players/{id}/progress` | `STUDENT`, own id | Stores the snapshot of a phase (`currentPhaseIndex` 0 to 25, `errorsData`, `soundRepeatsData`). `400` if the phase skips ahead of the next expected one; `409` if the phase was already stored. |
 | GET | `/educators/{id}/students` | `EDUCATOR`, own id | Lists the educator's linked students. |
-| POST | `/educators/{id}/students` | `EDUCATOR`, own id | Links a student; body `email` and `studentName`, which must match the student's registration. |
+| POST | `/educators/{id}/students` | `EDUCATOR`, own id | Links a student; body `email` and `studentName`, which must match the student's registration. Any mismatch returns the same generic `400`, so accounts cannot be enumerated. |
 | GET | `/educators/student-progress/{studentId}` | `EDUCATOR`, linked student | Returns totals and per-phase snapshots of a linked student. |
 | PUT | `/educators/{id}/updateStudentIds` | `EDUCATOR`, own id | Body is a list of student ids; can only keep or remove students already linked (`400` if it contains anyone else). |
-| POST | `/audio/transcribe` | Any authenticated user | Multipart field `audioFile` (WAV, 16 kHz); returns the transcribed text as plain text. |
+| POST | `/audio/transcribe` | Any authenticated user (student or educator) | Multipart field `audioFile`: WAV PCM 16-bit, mono, 16 kHz, up to 1 MB (about 30 s). Returns the text as plain text. `415` for other formats, `413` if too large, `503` if the speech model is unavailable. |
 
-Validation failures return `400` with `{"error": "Dados inválidos", "fields": {"campo": "mensagem"}}`. Registration requires a name, a valid e-mail and a password of 8 to 72 characters.
+Error bodies are JSON. Validation failures return `400` with `{"error": "Dados inválidos", "fields": {"campo": "mensagem"}}`. Missing, invalid or expired tokens return `401` with `{"error": "..."}`; `403` is used only for lack of permission. Unique-constraint violations (concurrent registration or duplicated phase progress) return `409`. Registration requires a name, a valid e-mail and a password of 8 to 72 characters.
 
 ## Prerequisites
 
@@ -101,6 +101,7 @@ Validation failures return `400` with `{"error": "Dados inválidos", "fields": {
 | `JWT_SECRET` | Yes | - | Signing secret, at least 32 characters. The application refuses to start without it. |
 | `JWT_EXPIRATION_MS` | No | `86400000` | Token lifetime in milliseconds. |
 | `CORS_ALLOWED_ORIGINS` | No | `http://localhost:5173` | Comma-separated list of allowed origins. |
+| `VOSK_MODEL_PATH` | No | `vosk-model` | Directory of the Vosk model, relative to the working directory. |
 
 See `.env.example` for fictitious values. The application does **not** read `.env` by itself; export the variables in your shell. Docker Compose reads a `.env` file in this directory for variable substitution. `.env` is ignored by Git.
 
@@ -138,6 +139,8 @@ To use it with the frontend, run the frontend in dev mode (default origin `http:
 
 The schema is versioned with Flyway in `src/main/resources/db/migration`. `V1__schema_inicial.sql` creates `users`, `player_data` and `educators_students`. Hibernate runs with `ddl-auto=validate`, so it never alters the schema; any schema change must be a new migration.
 
+`V2__email_minusculo.sql` lowercases existing e-mails and adds a `CHECK` that forces e-mails to be lowercase; together with the `UNIQUE` constraint of `V1` this makes e-mail uniqueness case-insensitive in both PostgreSQL and H2. It fails on purpose if two existing accounts differ only by letter case. E-mails are trimmed and lowercased on registration, login and student linking.
+
 For a **pre-existing database** that already has these tables (for example one created before Flyway was introduced), do not run `V1` over it. Baseline it first so that Flyway marks `V1` as applied, e.g. with `spring.flyway.baseline-on-migrate=true` and `spring.flyway.baseline-version=1` for the first start, and check that the existing columns match `V1`. This validation was only exercised on H2, not against a real PostgreSQL.
 
 ## Tests
@@ -146,7 +149,7 @@ For a **pre-existing database** that already has these tables (for example one c
 ./mvnw -B test
 ```
 
-38 tests: service unit tests (Mockito) and integration tests with MockMvc covering authorization between users, input validation, login role handling and CORS. They run against an in-memory H2 database in PostgreSQL mode and need no external database. The same Flyway migration is applied; the `jsonb` type is emulated in H2 through a domain created in the test JDBC URL. The Spring context also tries to load the Vosk model from `vosk-model/`.
+66 tests: service unit tests (Mockito) and integration tests with MockMvc covering authorization between users, input validation, login role handling and CORS. They run against an in-memory H2 database in PostgreSQL mode and need no external database. The same Flyway migration is applied; the `jsonb` type is emulated in H2 through a domain created in the test JDBC URL. The Vosk model is not loaded in tests (`vosk.model-path` is empty) and the recognizer is mocked.
 
 ## Continuous integration
 
@@ -166,10 +169,10 @@ There is **no public hosted instance** of this API, and no deployment configurat
 ## Implementation details and known limitations
 
 - **Student-educator link has no student consent.** An educator links a student knowing only their e-mail and exact name; the student is not asked to accept.
-- **Speech accuracy.** The Vosk small Portuguese model is used without a restricted grammar, so accuracy is low for very short items such as single letters. The transcript is extracted from Vosk's JSON by string search, and the endpoint does not validate the WAV format, sample rate or size.
-- **Progress.** The server accepts any non-negative phase index and does not enforce the order or a maximum number of phases.
+- **Speech accuracy.** The Vosk small Portuguese model is used without a restricted grammar, so accuracy is low for very short items such as single letters. The endpoint validates the WAV format and size, but not audio quality or duration.
+- **Progress.** `currentPhaseIndex` is limited to 0 to 25 (the game has 26 phases) and phases cannot be skipped: a snapshot is accepted only for the next expected phase or an earlier one not yet stored. The server trusts the error and replay counters sent by the client.
 - **Tokens.** JWTs cannot be revoked and are not checked against the database on each request; there are no refresh tokens, rate limiting or e-mail verification.
-- **Roles** live in a JSON column and are matched by name, rather than in a dedicated column.
+- **Roles** live in a JSON column (`metadados`) rather than in a dedicated column; they are read in a single place (`UserRole`) with structured JSON parsing.
 - **Passwords** are limited to 72 characters (BCrypt limit).
 - **Docker** images and Compose were not executed in the environment used to prepare this repository.
 - **PostgreSQL** was not used in automated tests; schema validation against it is unverified.
