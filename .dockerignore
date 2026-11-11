@@ -1,12 +1,13 @@
 # Builds locais
 target/
+bin/
 build/
 dist/
-nbbuild/
-nbdist/
-.nb-gradle/
-.sts4-cache
-.apt_generated
+
+# Segredos: nunca entram na imagem
+.env
+.env.*
+!.env.example
 
 # IDEs
 .idea/
@@ -19,9 +20,10 @@ nbdist/
 .settings
 .springBeans
 .vscode/
+.sts4-cache
+.apt_generated
 
 # Git
 .git
 .gitignore
 .gitattributes
-
