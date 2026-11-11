@@ -36,29 +36,41 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
 
-            if (jwtService.isTokenValid(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
-                Claims claims = jwtService.extractClaims(token);
-                
-                UUID userId = UUID.fromString(claims.getSubject()); 
-                
-                String role = claims.get("role", String.class);
-                String email = claims.get("email", String.class);
+            if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                JwtAuthenticatedUser principal = parsePrincipal(token);
+                if (principal != null) {
+                    List<SimpleGrantedAuthority> authorities =
+                        List.of(new SimpleGrantedAuthority("ROLE_" + principal.getRole()));
 
-                String normalizedRole = role != null ? role.toUpperCase() : "STUDENT";
-                
-                JwtAuthenticatedUser principal = new JwtAuthenticatedUser(userId, normalizedRole, email);
+                    UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(principal, null, authorities);
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                List<SimpleGrantedAuthority> authorities =
-                    List.of(new SimpleGrantedAuthority("ROLE_" + normalizedRole));
-
-                UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(principal, null, authorities);
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
+                // Token inválido: não autentica; rotas protegidas respondem 401 pelo AuthenticationEntryPoint.
             }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /** Retorna o usuário do token ou null se o token for inválido (assinatura, validade, subject ou papel). */
+    private JwtAuthenticatedUser parsePrincipal(String token) {
+        try {
+            if (!jwtService.isTokenValid(token)) {
+                return null;
+            }
+            Claims claims = jwtService.extractClaims(token);
+            UUID userId = UUID.fromString(claims.getSubject());
+            String role = claims.get("role", String.class);
+            String normalizedRole = role != null ? role.toUpperCase() : "";
+            if (!normalizedRole.equals("STUDENT") && !normalizedRole.equals("EDUCATOR")) {
+                return null;
+            }
+            return new JwtAuthenticatedUser(userId, normalizedRole, claims.get("email", String.class));
+        } catch (RuntimeException ex) {
+            return null;
+        }
     }
 }

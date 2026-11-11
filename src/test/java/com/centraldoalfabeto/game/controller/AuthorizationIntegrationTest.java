@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.centraldoalfabeto.game.domain.model.EducatorStudentLink;
@@ -73,18 +74,48 @@ class AuthorizationIntegrationTest {
     }
 
     @Test
-    void semTokenOsEndpointsProtegidosRetornam401ou403() throws Exception {
-        int status = mockMvc.perform(get("/educators/" + educatorA.getId() + "/students"))
-            .andReturn().getResponse().getStatus();
-        assertTrue(status == 401 || status == 403, "status inesperado: " + status);
+    void semTokenRetorna401EmJson() throws Exception {
+        mockMvc.perform(get("/educators/" + educatorA.getId() + "/students"))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.error").exists());
     }
 
     @Test
-    void tokenInvalidoNaoAutentica() throws Exception {
-        int status = mockMvc.perform(get("/educators/" + educatorA.getId() + "/students")
+    void tokenInvalidoRetorna401() throws Exception {
+        mockMvc.perform(get("/educators/" + educatorA.getId() + "/students")
                 .header("Authorization", "Bearer token.invalido.aqui"))
-            .andReturn().getResponse().getStatus();
-        assertTrue(status == 401 || status == 403, "status inesperado: " + status);
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void tokenExpiradoRetorna401() throws Exception {
+        javax.crypto.SecretKey key = io.jsonwebtoken.security.Keys.hmacShaKeyFor(
+            "segredo-de-teste-com-mais-de-32-caracteres-fixos".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        String token = io.jsonwebtoken.Jwts.builder().setSubject(educatorA.getId().toString())
+            .setExpiration(new java.util.Date(System.currentTimeMillis() - 60_000))
+            .claim("role", "EDUCATOR").signWith(key).compact();
+        mockMvc.perform(get("/educators/" + educatorA.getId() + "/students")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void tokenComSubjectOuPapelInvalidoRetorna401() throws Exception {
+        String segredo = "segredo-de-teste-com-mais-de-32-caracteres-fixos";
+        java.util.Date exp = new java.util.Date(System.currentTimeMillis() + 60_000);
+        javax.crypto.SecretKey key = io.jsonwebtoken.security.Keys.hmacShaKeyFor(
+            segredo.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        String subjectInvalido = io.jsonwebtoken.Jwts.builder().setSubject("nao-e-uuid").setExpiration(exp)
+            .claim("role", "EDUCATOR").signWith(key).compact();
+        String papelInvalido = io.jsonwebtoken.Jwts.builder().setSubject(educatorA.getId().toString())
+            .setExpiration(exp).claim("role", "ADMIN").signWith(key).compact();
+
+        for (String token : new String[] {subjectInvalido, papelInvalido}) {
+            mockMvc.perform(get("/educators/" + educatorA.getId() + "/students")
+                    .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+        }
     }
 
     @Test
