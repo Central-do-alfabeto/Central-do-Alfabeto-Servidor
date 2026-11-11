@@ -3,6 +3,7 @@ package com.centraldoalfabeto.game.domain.controller;
 import com.centraldoalfabeto.game.dto.LoginRequestDTO;
 import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
 import com.centraldoalfabeto.game.service.AuthService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +27,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<UnifiedLoginResponseDTO> login(@RequestBody LoginRequestDTO loginData) {
+    public ResponseEntity<UnifiedLoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginData) {
         if (loginData.getEmail() == null || loginData.getPassword() == null) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }

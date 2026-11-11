@@ -6,6 +6,7 @@ import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
 import com.centraldoalfabeto.game.security.JwtAuthenticatedUser;
 import com.centraldoalfabeto.game.service.JogadorService;
 import com.centraldoalfabeto.game.service.ProgressService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +35,7 @@ public class JogadorController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<UnifiedLoginResponseDTO> registerPlayer(@RequestBody PlayerRegistrationDTO registrationDTO) {
+    public ResponseEntity<UnifiedLoginResponseDTO> registerPlayer(@Valid @RequestBody PlayerRegistrationDTO registrationDTO) {
         if (registrationDTO.getEmail() == null || registrationDTO.getSenha() == null) {
              return ResponseEntity.badRequest().build();
         }
@@ -54,7 +55,7 @@ public class JogadorController {
     @PostMapping("/{id}/progress")
     public ResponseEntity<Void> updateProgress(
             @PathVariable UUID id, 
-            @RequestBody ProgressUpdateDTO progressData,
+            @Valid @RequestBody ProgressUpdateDTO progressData,
             @AuthenticationPrincipal JwtAuthenticatedUser authenticatedUser) {
 
         if (authenticatedUser == null

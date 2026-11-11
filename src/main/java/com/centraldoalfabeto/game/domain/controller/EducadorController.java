@@ -7,6 +7,7 @@ import com.centraldoalfabeto.game.dto.StudentSummaryDTO;
 import com.centraldoalfabeto.game.dto.UnifiedLoginResponseDTO;
 import com.centraldoalfabeto.game.service.EducadorService;
 import com.centraldoalfabeto.game.security.JwtAuthenticatedUser;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +29,7 @@ public class EducadorController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<UnifiedLoginResponseDTO> registerEducator(@RequestBody EducatorRegistrationDTO registrationDTO) {
+    public ResponseEntity<UnifiedLoginResponseDTO> registerEducator(@Valid @RequestBody EducatorRegistrationDTO registrationDTO) {
         
         if (registrationDTO.getEmail() == null || registrationDTO.getNome() == null || registrationDTO.getSenha() == null) {
             return ResponseEntity.badRequest().build();
@@ -69,7 +70,7 @@ public class EducadorController {
     @PostMapping("/{id}/students")
     public ResponseEntity<StudentSummaryDTO> addStudent(
             @PathVariable UUID id,
-            @RequestBody AddStudentRequestDTO request,
+            @Valid @RequestBody AddStudentRequestDTO request,
             @AuthenticationPrincipal JwtAuthenticatedUser authenticatedUser
     ) {
         if (authenticatedUser == null
