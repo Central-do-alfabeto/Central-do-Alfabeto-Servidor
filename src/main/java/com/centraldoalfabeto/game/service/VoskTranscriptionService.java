@@ -1,37 +1,44 @@
 package com.centraldoalfabeto.game.service;
 
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-
-import org.vosk.Model;
-import org.vosk.LogLevel;
-import org.vosk.Recognizer;
-
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import java.io.BufferedInputStream;
-import java.io.InputStream;
+import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.vosk.LogLevel;
+import org.vosk.Model;
+import org.vosk.Recognizer;
 
 @Service
 public class VoskTranscriptionService {
+    private static final Logger logger = LoggerFactory.getLogger(VoskTranscriptionService.class);
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private final String modelPath;
     private Model model;
 
-    private static final String MODEL_PATH = "vosk-model"; 
+    public VoskTranscriptionService(@Value("${vosk.model-path:vosk-model}") String modelPath) {
+        this.modelPath = modelPath;
+    }
 
     @PostConstruct
     public void init() {
+        if (modelPath == null || modelPath.isBlank()) {
+            logger.info("Caminho do modelo Vosk vazio: reconhecimento de fala desabilitado.");
+            return;
+        }
         try {
             org.vosk.LibVosk.setLogLevel(LogLevel.WARNINGS);
-
-            // O modelo é lido do diretório "vosk-model" (relativo ao diretório de execução).
-            String absolutePath = new java.io.File(MODEL_PATH).getAbsolutePath();
-            System.out.println("Tentando carregar modelo Vosk de: " + absolutePath);
-
-            model = new Model(MODEL_PATH);
-            System.out.println("Modelo Vosk carregado com sucesso!");
+            // O caminho é relativo ao diretório de execução (padrão: vosk-model).
+            logger.info("Carregando modelo Vosk de {}", new java.io.File(modelPath).getAbsolutePath());
+            model = new Model(modelPath);
+            logger.info("Modelo Vosk carregado.");
         } catch (Exception | LinkageError e) {
-            System.err.println("Falha ao carregar o modelo Vosk (o reconhecimento de fala ficará indisponível):");
-            e.printStackTrace();
+            logger.error("Falha ao carregar o modelo Vosk; o reconhecimento de fala ficará indisponível.", e);
         }
     }
 
@@ -39,37 +46,35 @@ public class VoskTranscriptionService {
     public void destroy() {
         if (model != null) {
             model.close();
-            System.out.println("Modelo Vosk liberado.");
+            logger.info("Modelo Vosk liberado.");
         }
     }
 
-    public String transcribe(MultipartFile audioFile) throws Exception {
+    /** Transcreve dados PCM 16-bit mono 16 kHz. Lança IllegalStateException se o modelo não estiver carregado. */
+    public String transcribe(byte[] pcm) {
         if (model == null) {
             throw new IllegalStateException("Modelo Vosk não foi inicializado.");
         }
-        
-        try (InputStream ais = new BufferedInputStream(audioFile.getInputStream());
-             Recognizer recognizer = new Recognizer(model, 16000)) {
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            
-            while ((bytesRead = ais.read(buffer)) != -1) {
-                recognizer.acceptWaveForm(buffer, bytesRead);
-            }
-            
-            String finalResult = recognizer.getFinalResult(); // Corrigido: getFinalResult() em vez de getResult()
 
-            int textStart = finalResult.indexOf("\"text\" : \"");
-            if (textStart != -1) {
-                int contentStart = textStart + 10; 
-                int contentEnd = finalResult.indexOf("\"", contentStart);
-                return finalResult.substring(contentStart, contentEnd);
+        try (Recognizer recognizer = new Recognizer(model, WavAudio.SAMPLE_RATE)) {
+            int chunk = 4096;
+            for (int offset = 0; offset < pcm.length; offset += chunk) {
+                int length = Math.min(chunk, pcm.length - offset);
+                byte[] part = java.util.Arrays.copyOfRange(pcm, offset, offset + length);
+                recognizer.acceptWaveForm(part, length);
             }
-            
-            return finalResult;
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new Exception("Erro ao transcrever áudio com Vosk. Verifique se o formato é WAV 16kHz.");
+            return extractText(recognizer.getFinalResult());
+        } catch (IOException e) {
+            throw new IllegalStateException("Erro ao transcrever áudio.", e);
+        }
+    }
+
+    static String extractText(String resultJson) {
+        try {
+            JsonNode text = MAPPER.readTree(resultJson).path("text");
+            return text.isTextual() ? text.asText() : "";
+        } catch (IOException e) {
+            throw new IllegalStateException("Resposta inesperada do reconhecedor.", e);
         }
     }
 }
