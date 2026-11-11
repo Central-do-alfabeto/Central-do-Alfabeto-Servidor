@@ -59,26 +59,17 @@ public class AuthService {
             throw new SecurityException("Credenciais inválidas.");
         }
 
-        UUID userId = user.getId();
+        // O papel vem exclusivamente dos metadados gravados no servidor; nada enviado pelo cliente é considerado.
+        // Contas sem papel reconhecido são recusadas (em vez de assumir um papel).
         String metadataRole = resolveRoleFromMetadata(user.getMetadados());
-        Boolean requestedStudent = loginData.getIsStudent();
-        boolean isStudent = determineIsStudent(metadataRole, requestedStudent, userId);
-
-        UnifiedLoginResponseDTO response;
-
-        if (isStudent) {
-            response = buildPlayerResponse(user);
-        } else if (!isStudent) {
-            response = buildEducatorResponse(user);
+        Boolean isStudent = classifyRole(metadataRole);
+        if (isStudent == null) {
+            throw new SecurityException("Conta sem papel válido definido.");
         }
 
-        else {
-            throw new SecurityException("Papel solicitado incorreto para o usuário.");
-        }
-
-        return response;
+        return isStudent ? buildPlayerResponse(user) : buildEducatorResponse(user);
     }
-    
+
     private UnifiedLoginResponseDTO buildPlayerResponse(User user) {
         int nextPhaseIndex = resolveNextPhaseIndex(user.getId());
 
@@ -145,33 +136,18 @@ public class AuthService {
         return dto;
     }
 
-    private boolean determineIsStudent(String metadataRole, Boolean requestedStudent, UUID userId) {
-        if (metadataRole != null) {
-            if (metadataRole.equalsIgnoreCase("aluno")
-                || metadataRole.equalsIgnoreCase("student")
-                || metadataRole.equalsIgnoreCase("player")) {
-                return true;
-            }
-            if (metadataRole.equalsIgnoreCase("educador")
-                || metadataRole.equalsIgnoreCase("educator")) {
-                return false;
-            }
+    /** Retorna true para aluno, false para educador e null quando o papel é ausente ou desconhecido. */
+    private Boolean classifyRole(String role) {
+        if (role == null) {
+            return null;
         }
-
-        if (requestedStudent != null) {
-            return requestedStudent;
-        }
-
-        if (playerDataRepository.existsByPlayerId(userId)) {
+        if (role.equalsIgnoreCase("aluno") || role.equalsIgnoreCase("student") || role.equalsIgnoreCase("player")) {
             return true;
         }
-
-        if (educatorStudentLinkRepository.existsByEducatorId(userId)) {
+        if (role.equalsIgnoreCase("educador") || role.equalsIgnoreCase("educator")) {
             return false;
         }
-
-        // default to student if data inconclusive
-        return true;
+        return null;
     }
 
     private String resolveRoleFromMetadata(String rawMetadata) {

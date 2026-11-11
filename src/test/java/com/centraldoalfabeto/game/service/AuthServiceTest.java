@@ -205,4 +205,23 @@ class AuthServiceTest {
         IllegalStateException erro = assertThrows(IllegalStateException.class, curto::init);
         assertTrue(erro.getMessage().contains("JWT_SECRET"));
     }
+
+    @Test
+    void loginRecusaContaSemPapelNosMetadados() {
+        User semPapel = existingUser("sem@teste.com", "senha123", "student");
+        semPapel.setMetadados(null);
+        when(userRepository.findByEmail("sem@teste.com")).thenReturn(Optional.of(semPapel));
+
+        assertThrows(SecurityException.class,
+            () -> authService.authenticate(login("sem@teste.com", "senha123")));
+    }
+
+    @Test
+    void loginRecusaPapelDesconhecido() {
+        User estranho = existingUser("estranho@teste.com", "senha123", "admin");
+        when(userRepository.findByEmail("estranho@teste.com")).thenReturn(Optional.of(estranho));
+
+        assertThrows(SecurityException.class,
+            () -> authService.authenticate(login("estranho@teste.com", "senha123")));
+    }
 }

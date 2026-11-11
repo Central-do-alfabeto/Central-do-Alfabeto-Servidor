@@ -9,5 +9,4 @@ public class LoginRequestDTO {
     private String email;
     @NotBlank(message = "a senha é obrigatória")
     private String password;
-    private Boolean isStudent;
 }
